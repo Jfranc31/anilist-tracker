@@ -11,9 +11,7 @@ const CONFIG = {
   ANILIST_AUTH_URL: 'https://anilist.co/api/v2/oauth/authorize',
 
   // Backend API Configuration
-  // TODO: Replace with your Railway deployment URL after deploying
-  // For local development, use: 'http://localhost:3001'
-  BACKEND_URL: 'http://localhost:3001',
+  BACKEND_URL: 'https://anilist-tracker-production.up.railway.app',
 
   // Extension settings
   SETTINGS: {
