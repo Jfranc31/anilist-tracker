@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug AniList Tracker</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #0b1622;
+      color: #e4e4e4;
+    }
+    .info {
+      background: #151f2e;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    button {
+      background: #3db4f2;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #2c9dd9;
+    }
+  </style>
+</head>
+<body>
+  <h1>AniList Tracker Debug Info</h1>
+
+  <div class="info">
+    <h3>Extension Redirect URI:</h3>
+    <p id="redirect-uri">Loading...</p>
+  </div>
+
+  <div class="info">
+    <h3>Client ID:</h3>
+    <p id="client-id">Loading...</p>
+  </div>
+
+  <div class="info">
+    <h3>Full Auth URL:</h3>
+    <p id="auth-url" style="word-break: break-all;">Loading...</p>
+  </div>
+
+  <button onclick="copyRedirectURI()">Copy Redirect URI</button>
+  <button onclick="testAuthURL()">Test Auth URL in New Tab</button>
+
+  <script src="config.js"></script>
+  <script>
+    // Get redirect URI
+    const redirectURI = chrome.identity.getRedirectURL();
+    document.getElementById('redirect-uri').textContent = redirectURI;
+
+    // Get client ID
+    const clientId = CONFIG.ANILIST_CLIENT_ID;
+    document.getElementById('client-id').textContent = clientId;
+
+    // Build auth URL
+    const authUrl = new URL(CONFIG.ANILIST_AUTH_URL);
+    authUrl.searchParams.append('client_id', clientId);
+    authUrl.searchParams.append('redirect_uri', redirectURI);
+    authUrl.searchParams.append('response_type', 'token');
+    document.getElementById('auth-url').textContent = authUrl.toString();
+
+    function copyRedirectURI() {
+      navigator.clipboard.writeText(redirectURI);
+      alert('Redirect URI copied to clipboard!');
+    }
+
+    function testAuthURL() {
+      window.open(authUrl.toString(), '_blank');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "AniList Tracker",
+  "version": "1.0.0",
+  "description": "Track your anime and manga progress on AniList",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "identity",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://graphql.anilist.co/*",
+    "https://anilist.co/*",
+    "http://localhost:3001/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "scripts": [
+      "polyfill.js",
+      "config.js",
+      "utils/storage.js",
+      "services/anilist-pkce.js",
+      "background/background.js"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "anilist-tracker@extension.local",
+      "strict_min_version": "109.0"
+    }
+  }
+}

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AniList Tracker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Not Logged In State -->
+    <div id="login-view" class="view">
+      <div class="header">
+        <h1>AniList Tracker</h1>
+        <p class="subtitle">Track your anime progress</p>
+      </div>
+      <p class="info-text">Connect your AniList account to track and update your anime progress directly from your browser.</p>
+      <button id="login-btn" class="btn btn-primary">
+        Connect to AniList
+      </button>
+    </div>
+
+    <!-- Logged In State -->
+    <div id="main-view" class="view hidden">
+      <div id="user-banner" class="user-banner hidden"></div>
+      <div class="header">
+        <div class="user-info">
+          <img id="user-avatar" src="" alt="User avatar" class="avatar">
+          <div>
+            <h2 id="user-name">Username</h2>
+            <button id="logout-btn" class="btn-link">Logout</button>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="media-type-toggle">
+            <button id="toggle-anime" class="toggle-btn active">Anime</button>
+            <button id="toggle-manga" class="toggle-btn">Manga</button>
+          </div>
+          <button id="settings-btn" class="btn-icon" title="Settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="nav-tabs">
+        <button id="tab-search" class="tab-btn active">Search</button>
+        <button id="tab-watching" class="tab-btn"><span class="tab-label">Watching</span></button>
+        <button id="tab-planning" class="tab-btn"><span class="tab-label">Plan to Watch</span></button>
+        <button id="tab-completed" class="tab-btn"><span class="tab-label">Completed</span></button>
+        <button id="tab-paused" class="tab-btn"><span class="tab-label">Paused</span></button>
+        <button id="tab-dropped" class="tab-btn"><span class="tab-label">Dropped</span></button>
+        <button id="tab-repeating" class="tab-btn"><span class="tab-label">Rewatching</span></button>
+      </div>
+
+      <!-- Search Section -->
+      <div id="search-view" class="search-view">
+        <div class="search-section">
+          <div class="search-box">
+            <input type="text" id="search-input" placeholder="Search anime or manga..." autocomplete="off">
+            <button id="search-btn" class="btn btn-primary">Search</button>
+            <button id="season-toggle-btn" class="btn-icon season-toggle" title="Browse by season">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Browse Categories -->
+        <div id="browse-chips" class="browse-chips">
+          <button class="browse-chip" data-category="trending">Trending</button>
+          <button class="browse-chip anime-only" data-category="this-season">This Season</button>
+          <button class="browse-chip anime-only" data-category="upcoming">Upcoming</button>
+          <button class="browse-chip" data-category="popular">All Time Popular</button>
+          <button class="browse-chip" data-category="top-rated">Top 100</button>
+          <select id="search-genre-filter" class="search-genre-filter">
+            <option value="">+ Genre</option>
+            <option value="Action">Action</option>
+            <option value="Adventure">Adventure</option>
+            <option value="Comedy">Comedy</option>
+            <option value="Drama">Drama</option>
+            <option value="Ecchi">Ecchi</option>
+            <option value="Fantasy">Fantasy</option>
+            <option value="Horror">Horror</option>
+            <option value="Mahou Shoujo">Mahou Shoujo</option>
+            <option value="Mecha">Mecha</option>
+            <option value="Music">Music</option>
+            <option value="Mystery">Mystery</option>
+            <option value="Psychological">Psychological</option>
+            <option value="Romance">Romance</option>
+            <option value="Sci-Fi">Sci-Fi</option>
+            <option value="Slice of Life">Slice of Life</option>
+            <option value="Sports">Sports</option>
+            <option value="Supernatural">Supernatural</option>
+            <option value="Thriller">Thriller</option>
+          </select>
+        </div>
+        <div id="search-genre-chips" class="genre-chips-container"></div>
+
+        <!-- Season Browser -->
+        <div id="season-browser" class="season-browser hidden">
+          <div class="season-selector">
+            <select id="season-select" class="season-select">
+              <option value="WINTER">Winter</option>
+              <option value="SPRING">Spring</option>
+              <option value="SUMMER">Summer</option>
+              <option value="FALL">Fall</option>
+            </select>
+            <select id="season-year-select" class="season-select"></select>
+            <button id="season-close-btn" class="btn-icon season-close" title="Back to search">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="results-container" class="results-container">
+          <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <p class="hint">Search for anime to update your progress or add to your list.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- List View -->
+      <div id="list-view" class="list-view hidden">
+        <!-- Filter Section with integrated search -->
+        <div class="filter-section">
+          <input type="text" id="list-search-input" class="filter-search" placeholder="Search by title..." autocomplete="off">
+
+          <div class="filter-row">
+            <div class="filter-group">
+              <label for="format-filter">Format</label>
+              <select id="format-filter" class="filter-select">
+                <option value="">All Formats</option>
+                <option value="TV">TV</option>
+                <option value="TV_SHORT">TV Short</option>
+                <option value="MOVIE">Movie</option>
+                <option value="SPECIAL">Special</option>
+                <option value="OVA">OVA</option>
+                <option value="ONA">ONA</option>
+                <option value="MUSIC">Music</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label id="status-filter-label" for="status-filter">Anime Status</label>
+              <select id="status-filter" class="filter-select">
+                <option value="">All Status</option>
+                <option value="RELEASING">Airing</option>
+                <option value="FINISHED">Finished</option>
+                <option value="NOT_YET_RELEASED">Not Yet Aired</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="genre-filter">Genre</label>
+              <select id="genre-filter" class="filter-select">
+                <option value="">+ Genre</option>
+                <option value="Action">Action</option>
+                <option value="Adventure">Adventure</option>
+                <option value="Comedy">Comedy</option>
+                <option value="Drama">Drama</option>
+                <option value="Ecchi">Ecchi</option>
+                <option value="Fantasy">Fantasy</option>
+                <option value="Horror">Horror</option>
+                <option value="Mahou Shoujo">Mahou Shoujo</option>
+                <option value="Mecha">Mecha</option>
+                <option value="Music">Music</option>
+                <option value="Mystery">Mystery</option>
+                <option value="Psychological">Psychological</option>
+                <option value="Romance">Romance</option>
+                <option value="Sci-Fi">Sci-Fi</option>
+                <option value="Slice of Life">Slice of Life</option>
+                <option value="Sports">Sports</option>
+                <option value="Supernatural">Supernatural</option>
+                <option value="Thriller">Thriller</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="sort-select">Sort By</label>
+              <select id="sort-select" class="filter-select">
+                <option value="title-asc">Title (A-Z)</option>
+                <option value="title-desc">Title (Z-A)</option>
+                <option value="score-desc">Score (High-Low)</option>
+                <option value="score-asc">Score (Low-High)</option>
+                <option value="progress-desc">Progress (High-Low)</option>
+                <option value="progress-asc">Progress (Low-High)</option>
+                <option value="updated-desc">Updated (Recent)</option>
+              </select>
+            </div>
+
+            <button id="clear-filters-btn" class="btn-clear-filters">Clear</button>
+          </div>
+          <div class="filter-count-row">
+            <span id="list-count" class="list-count"></span>
+          </div>
+          <div id="list-genre-chips" class="genre-chips-container"></div>
+        </div>
+
+        <!-- List Results -->
+        <div id="list-container" class="results-container">
+          <p class="hint">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Detail View -->
+      <div id="detail-view" class="detail-view hidden">
+        <button id="back-btn" class="btn-back">← Back</button>
+
+        <!-- Header: cover + basic info (always visible) -->
+        <div class="detail-header">
+          <div id="detail-banner" class="detail-banner hidden"></div>
+          <img id="detail-cover" src="" alt="" class="detail-cover">
+          <div class="detail-header-info">
+            <h3 id="detail-title" class="detail-title"></h3>
+            <p id="detail-meta" class="detail-meta"></p>
+            <p id="detail-status" class="detail-status"></p>
+          </div>
+        </div>
+
+        <!-- Inner tab bar -->
+        <div class="detail-tabs">
+          <button class="detail-tab-btn active" data-tab="tracking">Tracking</button>
+          <button class="detail-tab-btn" data-tab="details">Details</button>
+        </div>
+
+        <!-- Tracking panel -->
+        <div id="detail-tracking-panel" class="detail-panel">
+          <div class="detail-actions">
+            <!-- Row 1: Status | Score | Episode Progress -->
+            <div class="tracking-grid tracking-grid--main">
+              <div id="detail-status-control" class="tracking-field tracking-field--status">
+                <label id="detail-status-label">Status</label>
+                <div class="input-group">
+                  <select id="detail-status-select" class="tracking-select">
+                    <option value="">Not on List</option>
+                    <option value="CURRENT">Watching</option>
+                    <option value="PLANNING">Plan to Watch</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="PAUSED">Paused</option>
+                    <option value="DROPPED">Dropped</option>
+                    <option value="REPEATING">Rewatching</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="detail-score-control" class="tracking-field hidden">
+                <label>Score (0-10)</label>
+                <div class="input-group">
+                  <input type="number" id="detail-score-input" class="episode-input" min="0" max="10" step="0.5">
+                </div>
+              </div>
+
+              <div id="detail-progress-control" class="tracking-field">
+                <label id="detail-progress-label">Episode Progress</label>
+                <div class="input-group input-group--with-btn">
+                  <input type="number" id="detail-episode-input" class="episode-input" min="0">
+                  <button id="detail-progress-plus" class="btn-increment" type="button">+1</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: Volume (manga only) -->
+            <div id="detail-volume-control" class="tracking-field tracking-field--volume hidden">
+              <label>Volume Progress</label>
+              <div class="input-group">
+                <input type="number" id="detail-volume-input" class="episode-input" min="0">
+              </div>
+            </div>
+
+            <div class="tracking-update-row">
+              <button id="detail-update-btn" class="btn btn-primary">Save</button>
+            </div>
+
+            <div id="detail-status-buttons" class="status-buttons">
+              <!-- Remove from List button added dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Details panel -->
+        <div id="detail-info-panel" class="detail-panel hidden">
+          <p id="detail-description" class="detail-description"></p>
+          <div class="relations-section">
+            <h4>Related</h4>
+            <div id="detail-relations" class="relations-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div id="settings-view" class="settings-view hidden">
+        <button id="settings-back-btn" class="btn-back">← Back</button>
+        <h3 class="settings-title">Settings</h3>
+
+        <div class="settings-section">
+          <h4 class="settings-section-title">Account</h4>
+          <div class="settings-account-row">
+            <img id="settings-avatar" src="" alt="" class="settings-avatar">
+            <div class="settings-account-info">
+              <span id="settings-username" class="settings-username"></span>
+              <a id="settings-profile-link" href="#" class="btn-link settings-profile-link" target="_blank">View on AniList ↗</a>
+            </div>
+          </div>
+          <button id="settings-logout-btn" class="btn-danger-outline">Logout</button>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-section-title">Statistics</h4>
+          <div id="stats-container" class="stats-container">
+            <p class="settings-note">Loading statistics...</p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-section-title">Display Preferences</h4>
+          <p class="settings-note">Synced from your AniList account. Change them on AniList to update here.</p>
+          <div class="settings-pref-row">
+            <span class="settings-pref-label">Title Language</span>
+            <span id="settings-title-language" class="settings-pref-value">—</span>
+          </div>
+          <div class="settings-pref-row">
+            <span class="settings-pref-label">Score Format</span>
+            <span id="settings-score-format" class="settings-pref-value">—</span>
+          </div>
+          <div class="settings-pref-row">
+            <span class="settings-pref-label">Profile Color</span>
+            <span id="settings-profile-color" class="settings-pref-value">—</span>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-section-title">Appearance</h4>
+
+          <div class="settings-pref-row settings-pref-row--theme">
+            <span class="settings-pref-label">Theme</span>
+            <div class="appearance-btn-group" id="theme-toggle">
+              <button class="appearance-btn active" data-value="dark">AniList</button>
+              <button class="appearance-btn" data-value="oled">OLED</button>
+              <button class="appearance-btn" data-value="dracula">Dracula</button>
+              <button class="appearance-btn" data-value="catppuccin">Catppuccin</button>
+              <button class="appearance-btn" data-value="light">Light</button>
+              <button class="appearance-btn" data-value="auto">Auto</button>
+            </div>
+          </div>
+
+          <div class="settings-pref-row">
+            <span class="settings-pref-label">Card Layout</span>
+            <div class="appearance-btn-group" id="layout-toggle">
+              <button class="appearance-btn active" data-value="list">List</button>
+              <button class="appearance-btn" data-value="grid">Grid</button>
+              <button class="appearance-btn" data-value="compact">Compact</button>
+            </div>
+          </div>
+
+          <div class="settings-pref-row">
+            <span class="settings-pref-label">Cover Art</span>
+            <div class="appearance-btn-group" id="covers-toggle">
+              <button class="appearance-btn active" data-value="show">Show</button>
+              <button class="appearance-btn" data-value="hide">Hide</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-section-title">About</h4>
+          <p class="settings-note">AniList Tracker — browser extension for tracking anime &amp; manga progress.</p>
+        </div>
+      </div>
+
+      <!-- Toast Container -->
+      <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-view" class="view hidden">
+      <div class="loader"></div>
+      <p>Loading...</p>
+    </div>
+  </div>
+
+  <!-- Load scripts in order: polyfill first, then config, utilities, services, and popup -->
+  <script src="../polyfill.js"></script>
+  <script src="../config.js"></script>
+  <script src="../utils/storage.js"></script>
+  <script src="../services/anilist-pkce.js"></script>
+  <!-- Use modular version -->
+  <script type="module" src="popup-refactored.js"></script>
+</body>
+</html>

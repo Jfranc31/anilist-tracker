@@ -1,0 +1,14 @@
+{
+  "name": "anilist-tracker-frontend",
+  "version": "1.0.0",
+  "description": "AniList Tracker Browser Extension",
+  "scripts": {
+    "watch:scss": "sass --watch popup/popup.scss:popup/popup.css --style compressed",
+    "build:scss": "sass popup/popup.scss:popup/popup.css --style compressed",
+    "dev": "npm run watch:scss",
+    "build": "npm run build:scss"
+  },
+  "devDependencies": {
+    "sass": "^1.70.0"
+  }
+}
