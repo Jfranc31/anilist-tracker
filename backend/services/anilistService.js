@@ -14,13 +14,23 @@ const ANILIST_API_URL = 'https://graphql.anilist.co';
  */
 export async function exchangeCodeForToken(code, redirectUri) {
   try {
-    const response = await axios.post(ANILIST_TOKEN_URL, {
+    const payload = {
       grant_type: 'authorization_code',
       client_id: process.env.ANILIST_CLIENT_ID,
       client_secret: process.env.ANILIST_CLIENT_SECRET,
-      redirect_uri: redirectUri, // Use the redirect URI from the frontend (supports both Chrome and Firefox)
+      redirect_uri: redirectUri,
       code: code
-    }, {
+    };
+
+    console.log('Token exchange request:', {
+      grant_type: payload.grant_type,
+      client_id: payload.client_id,
+      client_secret_length: payload.client_secret?.length,
+      redirect_uri: payload.redirect_uri,
+      code_length: payload.code?.length
+    });
+
+    const response = await axios.post(ANILIST_TOKEN_URL, payload, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -34,6 +44,7 @@ export async function exchangeCodeForToken(code, redirectUri) {
     };
   } catch (error) {
     console.error('AniList token exchange error:', error.response?.data);
+    console.error('AniList token exchange status:', error.response?.status);
     throw error;
   }
 }
