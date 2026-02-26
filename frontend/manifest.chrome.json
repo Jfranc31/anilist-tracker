@@ -3,6 +3,11 @@
   "name": "AniList Tracker",
   "version": "1.0.0",
   "description": "Track your anime and manga progress on AniList",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
   "permissions": [
     "storage",
     "activeTab",
@@ -13,18 +18,17 @@
   "host_permissions": [
     "https://graphql.anilist.co/*",
     "https://anilist.co/*",
-    "http://localhost:3001/*"
+    "https://anilist-tracker-production.up.railway.app/*"
   ],
   "action": {
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
   },
   "background": {
     "service_worker": "background/background.js"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "anilist-tracker@extension.local",
-      "strict_min_version": "109.0"
-    }
   }
 }
