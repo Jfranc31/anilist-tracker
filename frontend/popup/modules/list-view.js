@@ -62,7 +62,16 @@ export async function loadList(status) {
   updateFormatFilterOptions();
 
   try {
-    const entries = await AniListAPI.getUserAnimeList(status, state.currentMediaType);
+    // Try to get cached list data first (2-minute TTL)
+    let entries = await Storage.getCachedList(status, state.currentMediaType);
+
+    // If cache miss or expired, fetch from API
+    if (!entries) {
+      entries = await AniListAPI.getUserAnimeList(status, state.currentMediaType);
+      // Cache the fetched data
+      await Storage.setCachedList(status, state.currentMediaType, entries);
+    }
+
     setListData(entries);
 
     if (entries.length === 0) {
@@ -82,13 +91,14 @@ export async function loadList(status) {
   }
 }
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 20;
 
 async function renderBatch(entries, offset) {
   const fragment = document.createDocumentFragment();
   const batch = entries.slice(offset, offset + BATCH_SIZE);
 
-  for (const [i, entry] of batch.entries()) {
+  // Create all cards in parallel for faster rendering
+  const cardPromises = batch.map((entry, i) => {
     const anime = {
       ...entry.media,
       mediaListEntry: {
@@ -99,9 +109,13 @@ async function renderBatch(entries, offset) {
         repeat: entry.repeat
       }
     };
-    const card = await createResultCard(anime, offset + i);
-    fragment.appendChild(card);
-  }
+    return createResultCard(anime, offset + i);
+  });
+
+  // Wait for all cards to be created
+  const cards = await Promise.all(cardPromises);
+  cards.forEach(card => fragment.appendChild(card));
+
   listContainer.appendChild(fragment);
 
   const nextOffset = offset + batch.length;

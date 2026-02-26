@@ -235,17 +235,27 @@ async function initializePopup() {
 
 async function showMainView() {
   try {
-    // Fetch fresh user data from API to pick up latest preferences (titleLanguage, scoreFormat, bannerImage)
-    // Falls back to cached data if the request fails
-    let user = await Storage.getUser();
-    try {
-      const freshUser = await AniListAPI.getCurrentUser();
-      if (freshUser) {
-        await Storage.setUser(freshUser);
-        user = freshUser;
+    // Try cached user data first (5-minute TTL)
+    let user = await Storage.getCachedUser();
+
+    // If cache miss or expired, fetch from API
+    if (!user) {
+      try {
+        user = await AniListAPI.getCurrentUser();
+        if (user) {
+          await Storage.setCachedUser(user);
+          await Storage.setUser(user); // Keep backward compatibility
+        }
+      } catch (e) {
+        console.warn('Could not fetch user data from API:', e);
+        // Fall back to non-cached storage as last resort
+        user = await Storage.getUser();
       }
-    } catch (e) {
-      console.warn('Could not refresh user data, using cached:', e);
+    }
+
+    // Final fallback
+    if (!user) {
+      user = await Storage.getUser();
     }
 
     if (user) {
@@ -285,8 +295,12 @@ async function showMainView() {
     showView('main');
     syncAppearanceUI(currentAppearance);
 
+    // Batch read initialization data
+    const initData = await Storage.getMultiple(['currentMediaType', 'selectedAnime']);
+    const savedType = initData.currentMediaType;
+    const selectedAnime = initData.selectedAnime;
+
     // Restore persisted media type
-    const { currentMediaType: savedType } = await chrome.storage.local.get('currentMediaType');
     if (savedType && savedType !== state.currentMediaType) {
       setMediaType(savedType);
       toggleAnime.classList.toggle('active', savedType === 'ANIME');
@@ -303,10 +317,9 @@ async function showMainView() {
     }
 
     // Check if there's a selected anime
-    const result = await chrome.storage.local.get(['selectedAnime']);
-    if (result.selectedAnime) {
+    if (selectedAnime) {
       const { showDetailView } = await import('./modules/detail-view.js');
-      await showDetailView(result.selectedAnime);
+      await showDetailView(selectedAnime);
     } else {
       showSearchView();
     }

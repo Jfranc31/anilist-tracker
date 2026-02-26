@@ -40,6 +40,12 @@ export function handleAPIError(error, defaultMessage = 'An error occurred') {
     return formattedError;
   }
 
+  // Handle storage errors
+  if (formattedError.type === 'STORAGE_ERROR' || formattedError.type === 'QUOTA_EXCEEDED') {
+    showError(formattedError.message, 'error', 5000);
+    return formattedError;
+  }
+
   // Default error handling
   showError(formattedError.message || defaultMessage, 'error', 5000);
   return formattedError;

@@ -135,7 +135,10 @@ export function clearDetailView() {
 // Select anime and show detail view
 export async function selectAnime(anime) {
   // Store selected anime
-  await chrome.storage.local.set({ selectedAnime: anime });
+  const result = await Storage.setWithFeedback('selectedAnime', anime);
+  if (!result.success) {
+    handleAPIError({ type: 'STORAGE_ERROR', message: result.message });
+  }
   // Show detail view
   await showDetailView(anime);
 }
@@ -184,19 +187,27 @@ export async function showDetailView(anime) {
   if (detailDescription) detailDescription.innerHTML = '';
   if (detailRelations) detailRelations.innerHTML = '';
 
-  // Refresh media data from API to get latest info
-  try {
-    const query = anime.title.romaji || anime.title.english;
-    const searchResults = await AniListAPI.searchAnimeList(query, 1, 5, state.currentMediaType);
-    const refreshedAnime = searchResults.media.find(m => m.id === anime.id);
+  // Only refetch if data is stale (no mediaListEntry)
+  const needsRefresh = !anime.mediaListEntry;
 
-    if (refreshedAnime) {
-      anime = refreshedAnime;
-      // Update storage with refreshed data
-      await chrome.storage.local.set({ selectedAnime: anime });
+  if (needsRefresh) {
+    try {
+      const query = anime.title.romaji || anime.title.english;
+      const searchResults = await AniListAPI.searchAnimeList(query, 1, 5, state.currentMediaType);
+      const refreshedAnime = searchResults.media.find(m => m.id === anime.id);
+
+      if (refreshedAnime) {
+        anime = refreshedAnime;
+        // Update storage with refreshed data
+        const result = await Storage.setWithFeedback('selectedAnime', anime);
+        if (!result.success) {
+          console.warn('Failed to cache refreshed anime:', result.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing media data:', error);
+      // Continue with current data
     }
-  } catch (error) {
-    console.error('Error refreshing media data:', error);
   }
 
   // Now populate with actual data
@@ -522,7 +533,7 @@ function todayAsFuzzyDate() {
 }
 
 // Patch the local anime entry and update only the tracking UI — no API refetch, no full re-render
-function patchLocalEntry(anime, savedEntry) {
+async function patchLocalEntry(anime, savedEntry) {
   const isManga = state.currentMediaType === 'MANGA';
   const totalProgress = isManga ? (anime.chapters || '?') : (anime.episodes || '?');
   const { id, status, progress, score, progressVolumes } = savedEntry;
@@ -530,8 +541,11 @@ function patchLocalEntry(anime, savedEntry) {
   // Update in-memory mediaListEntry
   anime.mediaListEntry = { ...(anime.mediaListEntry || {}), id, status, progress, score, progressVolumes };
 
-  // Persist to storage (fire-and-forget)
-  chrome.storage.local.set({ selectedAnime: anime });
+  // Persist to storage with error handling
+  const result = await Storage.setWithFeedback('selectedAnime', anime);
+  if (!result.success) {
+    showError(result.message, 'warning', 3000);
+  }
 
   // Update the status text line
   const progressVerb = isManga ? 'Read' : 'Watched';
@@ -635,7 +649,10 @@ export async function updateProgressFromDetail() {
     };
     showSuccess(`Saved! (${statusNames[targetStatus]})`);
 
-    patchLocalEntry(anime, savedEntry);
+    await patchLocalEntry(anime, savedEntry);
+
+    // Clear list caches so updated data is fetched next time
+    await Storage.clearListCaches(state.currentMediaType);
   } catch (error) {
     console.error('Update failed:', error);
     handleAPIError(error, 'Failed to update. Please try again.');
@@ -688,7 +705,10 @@ export async function incrementAndSave(plusBtn) {
     };
     showSuccess(`Saved! ${targetStatus !== selectedStatus ? `(${statusNames[targetStatus]})` : `${isManga ? 'Ch.' : 'Ep.'} ${next}`}`);
 
-    patchLocalEntry(anime, savedEntry);
+    await patchLocalEntry(anime, savedEntry);
+
+    // Clear list caches so updated data is fetched next time
+    await Storage.clearListCaches(state.currentMediaType);
   } catch (error) {
     console.error('Increment save failed:', error);
     handleAPIError(error, 'Failed to save. Please try again.');
@@ -728,6 +748,10 @@ async function removeFromList(entryId) {
       await AniListAPI.deleteMediaEntry(entryId);
       const isManga = state.currentMediaType === 'MANGA';
       showSuccess(`Removed from your ${isManga ? 'manga' : 'anime'} list.`);
+
+      // Clear list caches so updated data is fetched next time
+      await Storage.clearListCaches(state.currentMediaType);
+
       const result = await chrome.storage.local.get(['selectedAnime']);
       if (result.selectedAnime) {
         await showDetailView(result.selectedAnime);

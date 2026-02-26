@@ -1,5 +1,6 @@
 // Result card rendering
 import { state, getPreferredTitle } from './state.js';
+import { handleAPIError, showSuccess } from './error-handler.js';
 
 function formatTimeUntilAiring(seconds) {
   if (seconds <= 0) return 'now';
@@ -101,7 +102,7 @@ export async function createResultCard(anime, index = 0, options = {}) {
     ? `<div class="result-airing">Ep ${nextEp.episode}<span class="result-airing-time">in ${formatTimeUntilAiring(nextEp.timeUntilAiring)}</span></div>`
     : '';
 
-  const genres = (anime.genres || []).slice(0, 5);
+  const genres = (anime.genres || []).slice(0, 7);
   const genreHTML = genres.length
     ? `<div class="genre-chips">${genres.map(g => `<span class="genre-chip">${g}</span>`).join('')}</div>`
     : '';
@@ -130,8 +131,12 @@ export async function createResultCard(anime, index = 0, options = {}) {
       e.stopPropagation();
       quickAddBtn.disabled = true;
       quickAddBtn.textContent = '...';
+
       try {
         await AniListAPI.updateProgress(anime.id, 0, 'PLANNING');
+
+        showSuccess(`Added to ${isManga ? 'Plan to Read' : 'Plan to Watch'}`, 2000);
+
         const statusEl = card.querySelector('.result-status');
         const planVerb = isManga ? 'Plan to Read' : 'Plan to Watch';
         if (statusEl) {
@@ -141,6 +146,7 @@ export async function createResultCard(anime, index = 0, options = {}) {
         quickAddBtn.remove();
       } catch (error) {
         console.error('Quick add failed:', error);
+        handleAPIError(error, 'Failed to add to list');
         quickAddBtn.disabled = false;
         quickAddBtn.textContent = '+';
       }
@@ -150,8 +156,16 @@ export async function createResultCard(anime, index = 0, options = {}) {
 
   // Make card clickable to select media
   card.addEventListener('click', async () => {
-    const { selectAnime } = await import('./detail-view.js');
-    selectAnime(anime);
+    try {
+      const { selectAnime } = await import('./detail-view.js');
+      await selectAnime(anime);
+    } catch (error) {
+      console.error('Failed to load detail view:', error);
+      const { showError } = await import('./error-handler.js').catch(() => ({
+        showError: (msg) => console.error(msg)
+      }));
+      showError('Failed to open details. Please try again.', 'error', 3000);
+    }
   });
 
   return card;

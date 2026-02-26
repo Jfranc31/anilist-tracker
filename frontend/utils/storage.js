@@ -6,6 +6,7 @@ const Storage = {
   KEYS: {
     ACCESS_TOKEN: 'accessToken',
     USER: 'user',
+    USER_CACHE: 'userCache',
     IS_AUTHENTICATED: 'isAuthenticated',
     CURRENT_ANIME: 'currentAnime',
     SETTINGS: 'settings',
@@ -134,6 +135,30 @@ const Storage = {
     return await this.set(this.KEYS.APPEARANCE, settings);
   },
 
+  // Storage operations with user feedback
+  async setWithFeedback(key, value) {
+    try {
+      await chrome.storage.local.set({ [key]: value });
+      return { success: true };
+    } catch (error) {
+      console.error(`Error setting ${key}:`, error);
+
+      if (error.message?.includes('QUOTA_EXCEEDED')) {
+        return {
+          success: false,
+          error: 'QUOTA_EXCEEDED',
+          message: 'Storage limit reached. Please clear some data.'
+        };
+      }
+
+      return {
+        success: false,
+        error: 'STORAGE_ERROR',
+        message: 'Failed to save data. Please try again.'
+      };
+    }
+  },
+
   // ─── TTL Cache ────────────────────────────────────────────────────────────
   // Generic cache with expiry. Data is stored as { data, cachedAt } under the key.
   // TTL is in milliseconds.
@@ -147,6 +172,42 @@ const Storage = {
 
   async setCache(key, data) {
     return await this.set(key, { data, cachedAt: Date.now() });
+  },
+
+  // User-specific cache helpers
+  async getCachedUser() {
+    const TTL_5_MIN = 5 * 60 * 1000;
+    return await this.getCache(this.KEYS.USER_CACHE, TTL_5_MIN);
+  },
+
+  async setCachedUser(user) {
+    return await this.setCache(this.KEYS.USER_CACHE, user);
+  },
+
+  // List data cache helpers
+  async getCachedList(status, mediaType) {
+    const TTL_2_MIN = 2 * 60 * 1000;
+    const key = `list_${mediaType}_${status}`;
+    return await this.getCache(key, TTL_2_MIN);
+  },
+
+  async setCachedList(status, mediaType, data) {
+    const key = `list_${mediaType}_${status}`;
+    return await this.setCache(key, data);
+  },
+
+  // Clear all list caches for a media type (call after updates)
+  async clearListCaches(mediaType) {
+    const statuses = ['CURRENT', 'PLANNING', 'COMPLETED', 'PAUSED', 'DROPPED', 'REPEATING'];
+    const keys = statuses.map(status => `list_${mediaType}_${status}`);
+
+    try {
+      await chrome.storage.local.remove(keys);
+      return true;
+    } catch (error) {
+      console.error('Error clearing list caches:', error);
+      return false;
+    }
   },
 
   // Authentication helpers

@@ -19,13 +19,7 @@
     "default_popup": "popup/popup.html"
   },
   "background": {
-    "scripts": [
-      "polyfill.js",
-      "config.js",
-      "utils/storage.js",
-      "services/anilist-pkce.js",
-      "background/background.js"
-    ]
+    "service_worker": "background/background.js"
   },
   "browser_specific_settings": {
     "gecko": {
