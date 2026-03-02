@@ -10,8 +10,6 @@
   },
   "permissions": [
     "storage",
-    "activeTab",
-    "identity",
     "tabs"
   ],
   "host_permissions": [
