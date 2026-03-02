@@ -3,7 +3,7 @@ import { setCurrentTab } from './state.js';
 
 // DOM elements (will be set by main popup.js)
 let loginView, mainView, loadingView, searchView, listView, detailView, settingsView;
-let tabSearch, tabWatching, tabPlanning, tabCompleted, tabPaused, tabDropped, tabRepeating;
+let tabSearch, statusDropdownBtn;
 let searchInput, settingsBtn;
 
 export function setDOMElements(elements) {
@@ -15,12 +15,7 @@ export function setDOMElements(elements) {
   detailView = elements.detailView;
   settingsView = elements.settingsView;
   tabSearch = elements.tabSearch;
-  tabWatching = elements.tabWatching;
-  tabPlanning = elements.tabPlanning;
-  tabCompleted = elements.tabCompleted;
-  tabPaused = elements.tabPaused;
-  tabDropped = elements.tabDropped;
-  tabRepeating = elements.tabRepeating;
+  statusDropdownBtn = elements.statusDropdownBtn;
   searchInput = elements.searchInput;
   settingsBtn = elements.settingsBtn;
 }
@@ -68,6 +63,12 @@ export function showSearchView() {
   detailView.classList.add('hidden');
   setActiveTab(tabSearch);
 
+  // Show status dropdown so user can navigate to list tabs
+  if (statusDropdownBtn) {
+    const container = statusDropdownBtn.closest('.status-dropdown-container');
+    if (container) container.classList.remove('hidden');
+  }
+
   // Focus search input
   if (searchInput) {
     setTimeout(() => searchInput.focus(), 100);
@@ -85,26 +86,13 @@ export async function showListView(status) {
   listView.classList.remove('hidden');
   detailView.classList.add('hidden');
 
-  // Set active tab
-  switch(status) {
-    case 'CURRENT':
-      setActiveTab(tabWatching);
-      break;
-    case 'PLANNING':
-      setActiveTab(tabPlanning);
-      break;
-    case 'COMPLETED':
-      setActiveTab(tabCompleted);
-      break;
-    case 'PAUSED':
-      setActiveTab(tabPaused);
-      break;
-    case 'DROPPED':
-      setActiveTab(tabDropped);
-      break;
-    case 'REPEATING':
-      setActiveTab(tabRepeating);
-      break;
+  // Set active navigation (status dropdown is active when showing list)
+  if (tabSearch) tabSearch.classList.remove('active');
+
+  // Show status dropdown when viewing a list
+  if (statusDropdownBtn) {
+    const container = statusDropdownBtn.closest('.status-dropdown-container');
+    if (container) container.classList.remove('hidden');
   }
 
   // Load list data (import dynamically to avoid circular dependency)
@@ -113,12 +101,12 @@ export async function showListView(status) {
 }
 
 export function setActiveTab(activeTab) {
-  if (!tabSearch || !tabWatching || !tabPlanning || !tabCompleted) return;
+  if (!tabSearch || !statusDropdownBtn) return;
 
-  [tabSearch, tabWatching, tabPlanning, tabCompleted, tabPaused, tabDropped, tabRepeating]
-    .filter(Boolean)
-    .forEach(tab => tab.classList.remove('active'));
-  activeTab.classList.add('active');
+  // Remove active from both navigation buttons
+  tabSearch.classList.remove('active');
+  // Add active to the specified button
+  if (activeTab) activeTab.classList.add('active');
 }
 
 export function showDetailViewUI() {

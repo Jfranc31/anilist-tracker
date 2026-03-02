@@ -4,7 +4,7 @@ import { handleAPIError, setSkeletonLoading, emptyStateHTML, ICON_EMPTY_LIST, IC
 import { createResultCard } from './card-renderer.js';
 
 // DOM elements (will be set by main popup.js)
-let listContainer, listSearchInput, formatFilter, statusFilter, statusFilterLabel, genreFilter, genreChipsContainer, sortSelect, listCount;
+let listContainer, listSearchInput, formatFilter, statusFilter, genreFilter, genreChipsContainer, sortSelect, listCount;
 let selectedListGenres = [];
 
 export function setDOMElements(elements) {
@@ -12,7 +12,6 @@ export function setDOMElements(elements) {
   listSearchInput = elements.listSearchInput;
   formatFilter = elements.formatFilter;
   statusFilter = elements.statusFilter;
-  statusFilterLabel = elements.statusFilterLabel;
   genreFilter = elements.genreFilter;
   genreChipsContainer = elements.genreChipsContainer;
   sortSelect = elements.sortSelect;
@@ -237,9 +236,8 @@ export function updateFormatFilterOptions() {
   if (!formatFilter) return;
 
   if (state.currentMediaType === 'ANIME') {
-    // Update format filter
     formatFilter.innerHTML = `
-      <option value="">All Formats</option>
+      <option value="">Format</option>
       <option value="TV">TV</option>
       <option value="TV_SHORT">TV Short</option>
       <option value="MOVIE">Movie</option>
@@ -249,11 +247,9 @@ export function updateFormatFilterOptions() {
       <option value="MUSIC">Music</option>
     `;
 
-    // Update status filter label and options
-    if (statusFilterLabel) statusFilterLabel.textContent = 'Anime Status';
     if (statusFilter) {
       statusFilter.innerHTML = `
-        <option value="">All Status</option>
+        <option value="">Status</option>
         <option value="RELEASING">Airing</option>
         <option value="FINISHED">Finished</option>
         <option value="NOT_YET_RELEASED">Not Yet Aired</option>
@@ -261,19 +257,16 @@ export function updateFormatFilterOptions() {
       `;
     }
   } else {
-    // Update format filter
     formatFilter.innerHTML = `
-      <option value="">All Formats</option>
+      <option value="">Format</option>
       <option value="MANGA">Manga</option>
       <option value="NOVEL">Light Novel</option>
       <option value="ONE_SHOT">One Shot</option>
     `;
 
-    // Update status filter label and options
-    if (statusFilterLabel) statusFilterLabel.textContent = 'Manga Status';
     if (statusFilter) {
       statusFilter.innerHTML = `
-        <option value="">All Status</option>
+        <option value="">Status</option>
         <option value="RELEASING">Publishing</option>
         <option value="FINISHED">Finished</option>
         <option value="NOT_YET_RELEASED">Not Yet Published</option>

@@ -29,6 +29,21 @@
     }
   },
   "background": {
-    "service_worker": "background/background.js"
+    "scripts": [
+      "polyfill.js",
+      "config.js",
+      "utils/storage.js",
+      "services/anilist-pkce.js",
+      "background/background.js"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "anilist-tracker@extension.local",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
   }
 }

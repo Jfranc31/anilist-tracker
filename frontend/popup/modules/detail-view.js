@@ -187,8 +187,8 @@ export async function showDetailView(anime) {
   if (detailDescription) detailDescription.innerHTML = '';
   if (detailRelations) detailRelations.innerHTML = '';
 
-  // Only refetch if data is stale (no mediaListEntry)
-  const needsRefresh = !anime.mediaListEntry;
+  // Refetch if data is stale (no mediaListEntry) or missing detail fields (description/relations)
+  const needsRefresh = !anime.mediaListEntry || !anime.description || !anime.relations;
 
   if (needsRefresh) {
     try {

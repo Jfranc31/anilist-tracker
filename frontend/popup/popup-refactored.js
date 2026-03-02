@@ -33,6 +33,13 @@ const PROFILE_COLOR_MAP = {
 
 let currentAppearance = { theme: 'dark', cardLayout: 'list', showCovers: true };
 
+// Layout picker SVG icons
+const LAYOUT_ICONS = {
+  list: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  grid: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  compact: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="14" x2="21" y2="14"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+};
+
 function applyAppearance(settings) {
   const { theme, cardLayout, showCovers } = settings;
   document.body.classList.remove('theme-light', 'theme-auto', 'theme-oled', 'theme-dracula', 'theme-catppuccin');
@@ -41,6 +48,15 @@ function applyAppearance(settings) {
   document.body.classList.toggle('layout-grid', cardLayout === 'grid');
   document.body.classList.toggle('layout-compact', cardLayout === 'compact');
   document.body.classList.toggle('covers-hidden', !showCovers);
+  syncLayoutPickerUI(cardLayout);
+}
+
+function syncLayoutPickerUI(cardLayout) {
+  const trigger = document.getElementById('list-layout-picker')?.querySelector('.layout-picker-trigger');
+  if (trigger) trigger.innerHTML = LAYOUT_ICONS[cardLayout] || LAYOUT_ICONS.list;
+  document.querySelectorAll('.layout-picker-option').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.layout === cardLayout);
+  });
 }
 
 function setActiveBtn(group, value) {
@@ -84,12 +100,8 @@ const logoutBtn = document.getElementById('logout-btn');
 const userName = document.getElementById('user-name');
 const userAvatar = document.getElementById('user-avatar');
 const tabSearch = document.getElementById('tab-search');
-const tabWatching = document.getElementById('tab-watching');
-const tabPlanning = document.getElementById('tab-planning');
-const tabCompleted = document.getElementById('tab-completed');
-const tabPaused = document.getElementById('tab-paused');
-const tabDropped = document.getElementById('tab-dropped');
-const tabRepeating = document.getElementById('tab-repeating');
+const statusDropdownBtn = document.getElementById('status-dropdown-btn');
+const statusDropdownMenu = document.getElementById('status-dropdown-menu');
 const searchView = document.getElementById('search-view');
 const listView = document.getElementById('list-view');
 const searchInput = document.getElementById('search-input');
@@ -157,12 +169,7 @@ setViewElements({
   detailView,
   settingsView,
   tabSearch,
-  tabWatching,
-  tabPlanning,
-  tabCompleted,
-  tabPaused,
-  tabDropped,
-  tabRepeating,
+  statusDropdownBtn,
   searchInput,
   settingsBtn
 });
@@ -306,9 +313,7 @@ async function showMainView() {
       toggleAnime.classList.toggle('active', savedType === 'ANIME');
       toggleManga.classList.toggle('active', savedType === 'MANGA');
       if (savedType === 'MANGA') {
-        tabWatching.querySelector('.tab-label').textContent = 'Reading';
-        tabPlanning.querySelector('.tab-label').textContent = 'Plan to Read';
-        tabRepeating.querySelector('.tab-label').textContent = 'Rereading';
+        updateStatusButton();
         searchInput.placeholder = 'Search manga...';
         const seasonToggleBtn = document.getElementById('season-toggle-btn');
         if (seasonToggleBtn) seasonToggleBtn.classList.add('hidden');
@@ -346,18 +351,9 @@ function switchMediaType(type) {
     toggleManga.classList.add('active');
   }
 
-  // Update tab labels based on media type
-  if (type === 'ANIME') {
-    tabWatching.querySelector('.tab-label').textContent = 'Watching';
-    tabPlanning.querySelector('.tab-label').textContent = 'Plan to Watch';
-    tabRepeating.querySelector('.tab-label').textContent = 'Rewatching';
-    searchInput.placeholder = 'Search anime...';
-  } else {
-    tabWatching.querySelector('.tab-label').textContent = 'Reading';
-    tabPlanning.querySelector('.tab-label').textContent = 'Plan to Read';
-    tabRepeating.querySelector('.tab-label').textContent = 'Rereading';
-    searchInput.placeholder = 'Search manga...';
-  }
+  // Update status button label and search placeholder based on media type
+  updateStatusButton();
+  searchInput.placeholder = type === 'ANIME' ? 'Search anime...' : 'Search manga...';
 
   // Clear selected anime
   chrome.storage.local.remove('selectedAnime');
@@ -448,29 +444,75 @@ tabSearch.addEventListener('click', () => {
   showSearchView();
 });
 
-tabWatching.addEventListener('click', () => {
-  showListView('CURRENT');
+// Status cycling configuration (labels change based on media type)
+const STATUS_CYCLE = [
+  { status: 'CURRENT', animeLabel: 'Watching', mangaLabel: 'Reading', color: '#3db4f2' },
+  { status: 'PLANNING', animeLabel: 'Plan to Watch', mangaLabel: 'Plan to Read', color: '#a78bfa' },
+  { status: 'COMPLETED', animeLabel: 'Completed', mangaLabel: 'Completed', color: '#10b981' },
+  { status: 'PAUSED', animeLabel: 'Paused', mangaLabel: 'Paused', color: '#fbbf24' },
+  { status: 'DROPPED', animeLabel: 'Dropped', mangaLabel: 'Dropped', color: '#ef4444' },
+  { status: 'REPEATING', animeLabel: 'Rewatching', mangaLabel: 'Rereading', color: '#10b981' }
+];
+
+let currentStatusIndex = 0;
+
+function updateStatusButton(statusIndex = currentStatusIndex) {
+  const currentStatus = STATUS_CYCLE[statusIndex];
+  const indicator = statusDropdownBtn.querySelector('.status-indicator');
+  const label = statusDropdownBtn.querySelector('.status-label');
+
+  const isAnime = state.currentMediaType === 'ANIME';
+  label.textContent = isAnime ? currentStatus.animeLabel : currentStatus.mangaLabel;
+  indicator.style.background = currentStatus.color;
+  statusDropdownBtn.style.setProperty('--status-color', currentStatus.color);
+
+  // Update dropdown options labels for anime/manga
+  const options = statusDropdownMenu.querySelectorAll('.status-option');
+  options.forEach((option, index) => {
+    const optionLabel = option.querySelector('.status-label-option');
+    optionLabel.textContent = isAnime ? STATUS_CYCLE[index].animeLabel : STATUS_CYCLE[index].mangaLabel;
+
+    // Mark active option
+    option.classList.toggle('active', index === statusIndex);
+  });
+
+  currentStatusIndex = statusIndex;
+}
+
+// Toggle dropdown menu (or navigate directly if on search tab)
+statusDropdownBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  // If on search tab, clicking the dropdown button navigates directly to the current status list
+  if (state.currentTab === 'search') {
+    statusDropdownMenu.classList.add('hidden');
+    statusDropdownBtn.classList.remove('open');
+    showListView(STATUS_CYCLE[currentStatusIndex].status);
+    return;
+  }
+  const isOpen = !statusDropdownMenu.classList.contains('hidden');
+  statusDropdownMenu.classList.toggle('hidden', isOpen);
+  statusDropdownBtn.classList.toggle('open', !isOpen);
 });
 
-tabPlanning.addEventListener('click', () => {
-  showListView('PLANNING');
+// Status dropdown options - select status
+statusDropdownMenu.querySelectorAll('.status-option').forEach((option, index) => {
+  option.addEventListener('click', (e) => {
+    e.stopPropagation();
+    updateStatusButton(index);
+    statusDropdownMenu.classList.add('hidden');
+    statusDropdownBtn.classList.remove('open');
+    showListView(STATUS_CYCLE[index].status);
+  });
 });
 
-tabCompleted.addEventListener('click', () => {
-  showListView('COMPLETED');
+// Close dropdown when clicking outside
+document.addEventListener('click', () => {
+  statusDropdownMenu.classList.add('hidden');
+  statusDropdownBtn.classList.remove('open');
 });
 
-tabPaused.addEventListener('click', () => {
-  showListView('PAUSED');
-});
-
-tabDropped.addEventListener('click', () => {
-  showListView('DROPPED');
-});
-
-tabRepeating.addEventListener('click', () => {
-  showListView('REPEATING');
-});
+// Initialize button with first status
+updateStatusButton();
 
 // List search/filter (debounced)
 listSearchInput.addEventListener('input', () => {
@@ -504,8 +546,8 @@ sortSelect.addEventListener('change', () => {
   filterList();
 });
 
-// Clear filters button
-clearFiltersBtn.addEventListener('click', () => {
+// Clear filters button (if present)
+clearFiltersBtn?.addEventListener('click', () => {
   clearFilters();
 });
 
@@ -658,6 +700,30 @@ searchGenreFilter?.addEventListener('change', () => {
     await Storage.setAppearance(currentAppearance);
   });
 });
+
+// Inline layout picker in filter row
+const listLayoutPicker = document.getElementById('list-layout-picker');
+if (listLayoutPicker) {
+  const trigger = listLayoutPicker.querySelector('.layout-picker-trigger');
+  const menu = listLayoutPicker.querySelector('.layout-picker-menu');
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+
+  menu.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.layout-picker-option');
+    if (!btn) return;
+    menu.classList.add('hidden');
+    currentAppearance.cardLayout = btn.dataset.layout;
+    applyAppearance(currentAppearance);
+    syncAppearanceUI(currentAppearance);
+    await Storage.setAppearance(currentAppearance);
+  });
+
+  document.addEventListener('click', () => menu.classList.add('hidden'));
+}
 
 // Statistics loader (non-blocking, cached for 1 hour)
 const STATS_CACHE_TTL = 60 * 60 * 1000;

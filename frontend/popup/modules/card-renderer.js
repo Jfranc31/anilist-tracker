@@ -20,7 +20,7 @@ export async function createResultCard(anime, index = 0, options = {}) {
   // Use the mediaListEntry that comes with search results (more accurate)
   const listEntry = anime.mediaListEntry;
 
-  const cover = anime.coverImage.medium || '';
+  const cover = anime.coverImage.large || anime.coverImage.medium || '';
   const seriesColor = anime.coverImage.color;
   const title = getPreferredTitle(anime.title);
 
@@ -102,6 +102,16 @@ export async function createResultCard(anime, index = 0, options = {}) {
     ? `<div class="result-airing">Ep ${nextEp.episode}<span class="result-airing-time">in ${formatTimeUntilAiring(nextEp.timeUntilAiring)}</span></div>`
     : '';
 
+  // Show episodes behind for CURRENT anime that is airing
+  let behindBadge = '';
+  if (!isManga && nextEp && listEntry?.status === 'CURRENT') {
+    const lastAired = nextEp.episode - 1;
+    const behind = lastAired - progress;
+    if (behind > 0) {
+      behindBadge = `<span class="episodes-behind">${behind} ep behind</span>`;
+    }
+  }
+
   const genres = (anime.genres || []).slice(0, 7);
   const genreHTML = genres.length
     ? `<div class="genre-chips">${genres.map(g => `<span class="genre-chip">${g}</span>`).join('')}</div>`
@@ -115,7 +125,7 @@ export async function createResultCard(anime, index = 0, options = {}) {
     <div class="result-info">
       <h4 class="result-title">${title}</h4>
       <p class="result-meta">${totalProgress} ${progressLabel} • <span class="status-badge ${statusBadgeClass}">${statusText}</span>${anime.averageScore ? ` • ${anime.averageScore}%` : ''}</p>
-      <p class="result-status ${statusClass}">${userStatus}</p>
+      <p class="result-status ${statusClass}">${userStatus}${behindBadge}</p>
       ${genreHTML}
     </div>
     ${airingBadge}
