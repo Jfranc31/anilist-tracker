@@ -1,0 +1,129 @@
+/* AniList Tracker — Floating Manga Widget Styles
+   All selectors are prefixed with #anilist-tracker-widget or .atw-
+   to avoid conflicts with host page CSS. */
+
+#anilist-tracker-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483000;
+  width: 220px;
+  background: #111827;
+  border: 1px solid #2d3748;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: #e2e8f0;
+  box-sizing: border-box;
+}
+
+#anilist-tracker-widget * {
+  box-sizing: border-box;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+
+.atw-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.atw-cover {
+  width: 36px;
+  min-width: 36px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.atw-info {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.atw-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 3px;
+}
+
+.atw-progress {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.atw-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  transition: color 0.15s;
+}
+
+.atw-close:hover {
+  color: #e2e8f0;
+}
+
+/* ─── +1 Button ──────────────────────────────────────────────────────────── */
+
+.atw-plus-btn {
+  display: block;
+  width: 100%;
+  padding: 7px 0;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.atw-plus-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.atw-plus-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── Toast ──────────────────────────────────────────────────────────────── */
+
+.atw-toast {
+  font-size: 11px;
+  text-align: center;
+  margin-top: 6px;
+  min-height: 0;
+  transition: opacity 0.2s;
+}
+
+.atw-toast:empty {
+  display: none;
+}
+
+.atw-toast--success {
+  color: #34d399;
+}
+
+.atw-toast--error {
+  color: #f87171;
+}

@@ -272,6 +272,9 @@
         <div class="detail-tabs">
           <button class="detail-tab-btn active" data-tab="tracking">Tracking</button>
           <button class="detail-tab-btn" data-tab="details">Details</button>
+          <button class="detail-tab-btn" data-tab="info">Info</button>
+          <button class="detail-tab-btn" data-tab="characters">Characters</button>
+          <button class="detail-tab-btn" data-tab="recs">Recs</button>
         </div>
 
         <!-- Tracking panel -->
@@ -295,14 +298,22 @@
               </div>
 
               <div id="detail-score-control" class="tracking-field hidden">
-                <label>Score (0-10)</label>
+                <label id="detail-score-label">Score (0-10)</label>
                 <div class="input-group">
                   <input type="number" id="detail-score-input" class="episode-input" min="0" max="10" step="0.5">
                 </div>
               </div>
 
+              <!-- Volume Progress (manga only) — sits between score and chapter in 4-col grid -->
+              <div id="detail-volume-control" class="tracking-field hidden">
+                <label>Vol.</label>
+                <div class="input-group">
+                  <input type="number" id="detail-volume-input" class="episode-input" min="0">
+                </div>
+              </div>
+
               <div id="detail-progress-control" class="tracking-field">
-                <label id="detail-progress-label">Episode Progress</label>
+                <label id="detail-progress-label">Chapter Progress</label>
                 <div class="input-group input-group--with-btn">
                   <input type="number" id="detail-episode-input" class="episode-input" min="0">
                   <button id="detail-progress-plus" class="btn-increment" type="button">+1</button>
@@ -310,31 +321,69 @@
               </div>
             </div>
 
-            <!-- Row 2: Volume (manga only) -->
-            <div id="detail-volume-control" class="tracking-field tracking-field--volume hidden">
-              <label>Volume Progress</label>
-              <div class="input-group">
-                <input type="number" id="detail-volume-input" class="episode-input" min="0">
+            <!-- Row 2: Start Date | Finish Date | Rewatches (shown when on list) -->
+            <div id="detail-tracking-extra" class="tracking-grid tracking-grid--extra hidden">
+              <div class="tracking-field">
+                <label>Start Date</label>
+                <input type="date" id="detail-started-at" class="tracking-date-input">
+              </div>
+              <div class="tracking-field">
+                <label>Finish Date</label>
+                <input type="date" id="detail-completed-at" class="tracking-date-input">
+              </div>
+              <div class="tracking-field">
+                <label id="detail-rewatches-label">Total Rewatches</label>
+                <div class="input-group">
+                  <input type="number" id="detail-rewatches" class="episode-input" min="0">
+                </div>
               </div>
             </div>
 
-            <div class="tracking-update-row">
-              <button id="detail-update-btn" class="btn btn-primary">Save</button>
+            <!-- Row 3: Notes + Save/Remove side by side -->
+            <div class="tracking-bottom-row">
+              <div id="detail-notes-control" class="tracking-field tracking-notes-field hidden">
+                <label>Notes</label>
+                <textarea id="detail-notes" class="tracking-notes" placeholder="Add a note..."></textarea>
+              </div>
+              <div class="tracking-bottom-actions">
+                <div class="tracking-update-row">
+                  <button id="detail-update-btn" class="btn btn-primary">Save</button>
+                </div>
+                <div id="detail-status-buttons" class="status-buttons"></div>
+              </div>
             </div>
 
-            <div id="detail-status-buttons" class="status-buttons">
-              <!-- Remove from List button added dynamically -->
+            <!-- Pin to Widget (manga only) -->
+            <div id="detail-pin-row" class="detail-pin-row hidden">
+              <button id="detail-pin-btn" class="btn-pin">Pin to Widget</button>
             </div>
           </div>
         </div>
 
-        <!-- Details panel -->
+        <!-- Details panel: stat chips + description + relations + external links -->
         <div id="detail-info-panel" class="detail-panel hidden">
+          <div id="detail-info-stats" class="detail-info-stats"></div>
           <p id="detail-description" class="detail-description"></p>
           <div class="relations-section">
             <h4>Related</h4>
             <div id="detail-relations" class="relations-list"></div>
           </div>
+          <div id="detail-external-links" class="detail-external-links-section"></div>
+        </div>
+
+        <!-- Info panel: dates, studios, producers, source, synonyms -->
+        <div id="detail-info-tab" class="detail-panel hidden">
+          <div id="detail-meta-block" class="detail-meta-block"></div>
+        </div>
+
+        <!-- Characters panel -->
+        <div id="detail-characters-panel" class="detail-panel hidden">
+          <div id="detail-characters" class="detail-characters-section"></div>
+        </div>
+
+        <!-- Recs panel -->
+        <div id="detail-recs-panel" class="detail-panel hidden">
+          <div id="detail-recommendations" class="detail-recommendations-section"></div>
         </div>
       </div>
 

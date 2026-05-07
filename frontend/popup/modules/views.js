@@ -61,6 +61,10 @@ export function showSearchView() {
   searchView.classList.remove('hidden');
   listView.classList.add('hidden');
   detailView.classList.add('hidden');
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  const scrollContainer = document.querySelector('.container');
+  if (scrollContainer) scrollContainer.scrollTop = 0;
   setActiveTab(tabSearch);
 
   // Show status dropdown so user can navigate to list tabs
@@ -85,6 +89,10 @@ export async function showListView(status) {
   searchView.classList.add('hidden');
   listView.classList.remove('hidden');
   detailView.classList.add('hidden');
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  const scrollContainer = document.querySelector('.container');
+  if (scrollContainer) scrollContainer.scrollTop = 0;
 
   // Set active navigation (status dropdown is active when showing list)
   if (tabSearch) tabSearch.classList.remove('active');

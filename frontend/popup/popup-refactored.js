@@ -135,12 +135,29 @@ const detailVolumeControl = document.getElementById('detail-volume-control');
 const detailScoreControl = document.getElementById('detail-score-control');
 const detailStatusSelect = document.getElementById('detail-status-select');
 const detailStatusLabel = document.getElementById('detail-status-label');
+const detailInfoStats = document.getElementById('detail-info-stats');
+const detailMetaBlock = document.getElementById('detail-meta-block');
+const detailCharacters = document.getElementById('detail-characters');
+const detailRecommendations = document.getElementById('detail-recommendations');
+const detailExternalLinks = document.getElementById('detail-external-links');
 const detailDescription = document.getElementById('detail-description');
 const detailRelations = document.getElementById('detail-relations');
+const detailTrackingExtra = document.getElementById('detail-tracking-extra');
+const detailStartedAt = document.getElementById('detail-started-at');
+const detailCompletedAt = document.getElementById('detail-completed-at');
+const detailRewatches = document.getElementById('detail-rewatches');
+const detailRewatchesLabel = document.getElementById('detail-rewatches-label');
+const detailNotesControl = document.getElementById('detail-notes-control');
+const detailNotes = document.getElementById('detail-notes');
 const detailTrackingPanel = document.getElementById('detail-tracking-panel');
 const detailInfoPanel = document.getElementById('detail-info-panel');
+const detailInfoTab = document.getElementById('detail-info-tab');
+const detailCharactersPanel = document.getElementById('detail-characters-panel');
+const detailRecsPanel = document.getElementById('detail-recs-panel');
 const detailBanner = document.getElementById('detail-banner');
 const detailTabBtns = document.querySelectorAll('.detail-tab-btn');
+const detailPinBtn = document.getElementById('detail-pin-btn');
+const detailPinRow = document.getElementById('detail-pin-row');
 const toastContainer = document.getElementById('toast-container');
 const toggleAnime = document.getElementById('toggle-anime');
 const toggleManga = document.getElementById('toggle-manga');
@@ -200,18 +217,35 @@ setDetailElements({
   detailProgressPlus,
   detailUpdateBtn,
   detailStatusButtons,
+  detailTrackingExtra,
+  detailStartedAt,
+  detailCompletedAt,
+  detailRewatches,
+  detailRewatchesLabel,
+  detailNotesControl,
+  detailNotes,
   detailScoreInput,
   detailVolumeInput,
   detailVolumeControl,
   detailScoreControl,
   detailStatusSelect,
   detailStatusLabel,
+  detailInfoStats,
+  detailMetaBlock,
+  detailCharacters,
+  detailRecommendations,
+  detailExternalLinks,
   detailDescription,
   detailRelations,
   detailTrackingPanel,
   detailInfoPanel,
+  detailInfoTab,
+  detailCharactersPanel,
+  detailRecsPanel,
   detailTabBtns,
-  detailBanner
+  detailBanner,
+  detailPinBtn,
+  detailPinRow
 });
 
 // Initialize popup

@@ -421,6 +421,12 @@ const AniListAPI = {
             seasonYear
             format
             genres
+            synonyms
+            startDate { year month day }
+            endDate { year month day }
+            studios { nodes { name isAnimationStudio siteUrl } }
+            source
+            externalLinks { url site type color icon language }
             description(asHtml: true)
             nextAiringEpisode {
               airingAt
@@ -434,6 +440,9 @@ const AniListAPI = {
               progressVolumes
               score
               repeat
+              notes
+              startedAt { year month day }
+              completedAt { year month day }
             }
             relations {
               edges {
@@ -457,6 +466,11 @@ const AniListAPI = {
                 }
               }
             }
+            characters(sort: ROLE, perPage: 25, page: 1) {
+              pageInfo { hasNextPage }
+              edges { role node { id name { full } image { medium } siteUrl } }
+            }
+            recommendations(sort: RATING_DESC, perPage: 8) { nodes { mediaRecommendation { id title { romaji english } coverImage { large medium } } } }
           }
         }
       }
@@ -581,16 +595,20 @@ const AniListAPI = {
   /**
    * Update episode/chapter progress, status, score, and volume progress
    */
-  async updateProgress(mediaId, progress, status = 'CURRENT', score, progressVolumes, startedAt, completedAt) {
+  async updateProgress(mediaId, progress, status = 'CURRENT', score, progressVolumes, startedAt, completedAt, repeat, notes) {
     const query = `
-      mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus, $score: Float, $progressVolumes: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput) {
-        SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status, score: $score, progressVolumes: $progressVolumes, startedAt: $startedAt, completedAt: $completedAt) {
+      mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus, $score: Float, $progressVolumes: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput, $repeat: Int, $notes: String) {
+        SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status, score: $score, progressVolumes: $progressVolumes, startedAt: $startedAt, completedAt: $completedAt, repeat: $repeat, notes: $notes) {
           id
           mediaId
           status
           progress
           progressVolumes
           score
+          repeat
+          notes
+          startedAt { year month day }
+          completedAt { year month day }
         }
       }
     `;
@@ -600,6 +618,8 @@ const AniListAPI = {
     if (progressVolumes !== undefined) variables.progressVolumes = progressVolumes;
     if (startedAt !== undefined) variables.startedAt = startedAt;
     if (completedAt !== undefined) variables.completedAt = completedAt;
+    if (repeat !== undefined) variables.repeat = repeat;
+    if (notes !== undefined) variables.notes = notes;
 
     const data = await this.query(query, variables);
     return data.SaveMediaListEntry;
@@ -623,9 +643,13 @@ const AniListAPI = {
             bannerImage
             episodes chapters volumes
             status averageScore season seasonYear format genres
+            synonyms startDate { year month day } endDate { year month day }
+            studios { nodes { name isAnimationStudio } }
+            source
+            externalLinks { url site type color icon language }
             description(asHtml: true)
             nextAiringEpisode { airingAt timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat }
+            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
             relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
           }
         }
@@ -655,9 +679,13 @@ const AniListAPI = {
             bannerImage
             episodes chapters volumes
             status averageScore season seasonYear format genres
+            synonyms startDate { year month day } endDate { year month day }
+            studios { nodes { name isAnimationStudio } }
+            source
+            externalLinks { url site type color icon language }
             description(asHtml: true)
             nextAiringEpisode { airingAt timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat }
+            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
             relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
           }
         }
@@ -687,9 +715,13 @@ const AniListAPI = {
             bannerImage
             episodes chapters volumes
             status averageScore season seasonYear format genres
+            synonyms startDate { year month day } endDate { year month day }
+            studios { nodes { name isAnimationStudio } }
+            source
+            externalLinks { url site type color icon language }
             description(asHtml: true)
             nextAiringEpisode { airingAt timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat }
+            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
             relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
           }
         }
@@ -719,9 +751,13 @@ const AniListAPI = {
             bannerImage
             episodes chapters volumes
             status averageScore season seasonYear format genres
+            synonyms startDate { year month day } endDate { year month day }
+            studios { nodes { name isAnimationStudio } }
+            source
+            externalLinks { url site type color icon language }
             description(asHtml: true)
             nextAiringEpisode { airingAt timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat }
+            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
             relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
           }
         }
@@ -749,6 +785,24 @@ const AniListAPI = {
     `;
     const data = await this.query(query, { id: userId });
     return data.User.statistics;
+  },
+
+  /**
+   * Fetch a page of characters for a given media ID
+   */
+  async getMediaCharacters(mediaId, page) {
+    const query = `
+      query ($id: Int!, $page: Int!) {
+        Media(id: $id) {
+          characters(sort: ROLE, perPage: 25, page: $page) {
+            pageInfo { hasNextPage }
+            edges { role node { id name { full } image { medium } siteUrl } }
+          }
+        }
+      }
+    `;
+    const data = await this.query(query, { id: mediaId, page });
+    return data.Media.characters;
   },
 
   /**
