@@ -18,8 +18,6 @@ import {
   setDOMElements as setDetailElements
 } from './modules/detail-view.js';
 
-console.log('AniList Tracker popup loaded');
-
 // AniList named profile colors → hex values
 const PROFILE_COLOR_MAP = {
   blue:   { main: '#3db4f2', hover: '#2c9dd9' },
@@ -422,18 +420,13 @@ function switchMediaType(type) {
 
 // Event listeners
 loginBtn.addEventListener('click', async () => {
-  console.log('Login button clicked');
   loginBtn.disabled = true;
   loginBtn.textContent = 'Connecting...';
 
   try {
-    console.log('Sending authentication request to background script...');
-
     // Send message to background script to handle authentication
     // The background script persists even when popup closes during OAuth flow
     const response = await chrome.runtime.sendMessage({ type: 'AUTHENTICATE' });
-
-    console.log('Authentication response:', response);
 
     if (response.error) {
       throw new Error(response.error);
@@ -443,7 +436,6 @@ loginBtn.addEventListener('click', async () => {
       throw new Error('Invalid authentication response from background script');
     }
 
-    console.log('Authentication successful, showing main view');
     // The background script already saved the data, just show the main view
     await showMainView();
   } catch (error) {

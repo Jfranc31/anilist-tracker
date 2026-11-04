@@ -21,7 +21,5 @@
   // Ensure chrome.runtime exists (basic check)
   if (typeof chrome === 'undefined' || !chrome.runtime) {
     console.error('Browser extension APIs not available');
-  } else {
-    console.log('Browser polyfill loaded - Extension APIs available');
   }
 })();

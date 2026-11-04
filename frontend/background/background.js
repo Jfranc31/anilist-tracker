@@ -11,17 +11,10 @@ if (typeof importScripts === 'function') {
 }
 // Otherwise running as background page (Firefox) - dependencies already loaded via manifest
 
-console.log('AniList Tracker background script loaded');
-
 // Listen for extension installation
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log('Extension installed:', details.reason);
-
   if (details.reason === 'install') {
-    console.log('First time install - initializing...');
     initializeExtension();
-  } else if (details.reason === 'update') {
-    console.log('Extension updated');
   }
 });
 
@@ -32,8 +25,6 @@ async function initializeExtension() {
       isAuthenticated: false,
       user: null
     });
-
-    console.log('Extension initialized successfully');
   } catch (error) {
     console.error('Error initializing extension:', error);
   }
@@ -41,8 +32,6 @@ async function initializeExtension() {
 
 // Listen for messages from popup or content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('Message received in background:', message.type);
-
   switch (message.type) {
     case 'AUTHENTICATE':
       handleAuthentication()
@@ -64,14 +53,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Authentication handler - runs OAuth flow in background
 async function handleAuthentication() {
-  console.log('Starting authentication in background...');
   try {
     const { token, user } = await AniListAPI.authenticate();
 
     // Save to storage
     await Storage.saveAuthData(token, user);
 
-    console.log('Authentication successful:', user.name);
     return { success: true, user };
   } catch (error) {
     console.error('Authentication failed:', error);
@@ -81,7 +68,6 @@ async function handleAuthentication() {
 
 // Progress update handler
 async function handleProgressUpdate(data) {
-  console.log('Handling progress update...', data);
   try {
     const result = await AniListAPI.updateProgress(data.mediaId, data.progress, data.status);
     return { success: true, result };

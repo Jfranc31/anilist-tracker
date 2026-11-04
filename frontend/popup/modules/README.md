@@ -120,15 +120,32 @@ This directory contains the modularized code for the popup interface. The code h
 - `setDOMElements(elements)` - Initialize detail view DOM elements
 - `selectAnime(anime)` - Select anime and show detail view
 - `showDetailView(anime)` - Display detail view
-- `updateProgressFromDetail()` - Update progress from detail view
+- `updateProgressFromDetail()` - Save the tracking form
+- `incrementAndSave(plusBtn)` - +1 episode/chapter and save
+- `clearDetailView()` - Empty the view when navigating away
+- `isDetailDirty()` - Whether the tracking form has unsaved changes
 
 **Features**:
-- Displays cover, title, metadata
+- Displays cover, banner, title, metadata
 - Shows current user status and progress
-- Progress update input
-- Status change buttons (Start, Pause, Drop, Complete, etc.)
-- Refreshes data from API on load
+- Tracking form: status, progress, volumes, score, dates, rewatches, notes
+- Pin to Widget (manga) and Remove from List
+- Loads full details by ID (`AniListAPI.getMediaById`) when opened with partial data
 - Handles loading state to prevent flashing old content
+
+The tab contents are rendered by the modules in `detail/`:
+- `detail/info-tab.js` - Stats chips, Info tab, description, external links
+- `detail/related.js` - Relations and recommendations (clicking one calls back into `detail-view.js`)
+- `detail/characters.js` - Character list, paged 12 at a time
+- `detail/format.js` - Date conversion and status text helpers
+
+---
+
+### `sanitize.js`
+**Purpose**: Clean AniList description HTML before rendering
+
+**Exports**:
+- `sanitizeHTML(html)` - Returns a DocumentFragment keeping only simple formatting tags and `http(s)` links
 
 ---
 

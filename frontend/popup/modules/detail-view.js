@@ -2,6 +2,10 @@
 import { state, setMediaType, pushNavHistory, getPreferredTitle } from './state.js';
 import { showDetailViewUI } from './views.js';
 import { showError, showSuccess, handleAPIError } from './error-handler.js';
+import { formatDateInput, parseDateInput, todayAsFuzzyDate, formatTimeUntil, statusName, listStatusText } from './detail/format.js';
+import { renderStats, renderInfo, renderDescription, renderExternalLinks } from './detail/info-tab.js';
+import { renderRelations, renderRecommendations } from './detail/related.js';
+import { renderCharacters } from './detail/characters.js';
 
 // DOM elements (will be set by main popup.js)
 let detailCover, detailTitle, detailMeta, detailStatus;
@@ -13,17 +17,6 @@ let detailTrackingExtra, detailStartedAt, detailCompletedAt, detailRewatches, de
 let detailTabBtns, detailBanner;
 let detailPinBtn, detailPinRow;
 let cleanSnapshot = null;
-
-function formatDateInput(d) {
-  if (!d?.year) return '';
-  return `${d.year}-${String(d.month || 1).padStart(2, '0')}-${String(d.day || 1).padStart(2, '0')}`;
-}
-
-function parseDateInput(val) {
-  if (!val) return undefined;
-  const [y, m, d] = val.split('-').map(Number);
-  return { year: y, month: m, day: d };
-}
 
 function captureCleanSnapshot() {
   cleanSnapshot = {
@@ -153,8 +146,8 @@ function updatePlusButtonState() {
   detailEpisodeInput.classList.toggle('at-min', current <= 0);
 }
 
-// Clear the detail view content — call when navigating away so the next open starts blank
-export function clearDetailView() {
+// Empty every part of the detail view so the previous title never shows through
+function resetDetailContent() {
   if (detailBanner) {
     detailBanner.style.backgroundImage = '';
     detailBanner.classList.add('hidden');
@@ -184,6 +177,11 @@ export function clearDetailView() {
   if (detailNotes) detailNotes.value = '';
 }
 
+// Clear the detail view content — call when navigating away so the next open starts blank
+export function clearDetailView() {
+  resetDetailContent();
+}
+
 // Select anime and show detail view
 export async function selectAnime(anime) {
   // Store selected anime
@@ -195,13 +193,24 @@ export async function selectAnime(anime) {
   await showDetailView(anime);
 }
 
-function formatTimeUntil(seconds) {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+// Open a related title or recommendation, remembering the current one for Back
+async function openRelatedMedia(media, type) {
+  const currentResult = await chrome.storage.local.get(['selectedAnime']);
+  if (currentResult.selectedAnime) {
+    pushNavHistory({ anime: currentResult.selectedAnime, mediaType: state.currentMediaType });
+  }
+
+  if (type && type !== state.currentMediaType) {
+    setMediaType(type);
+    const toggleAnime = document.getElementById('toggle-anime');
+    const toggleManga = document.getElementById('toggle-manga');
+    if (toggleAnime && toggleManga) {
+      toggleAnime.classList.toggle('active', type === 'ANIME');
+      toggleManga.classList.toggle('active', type === 'MANGA');
+    }
+  }
+
+  selectAnime(media);
 }
 
 // Show detail view for selected anime
@@ -223,40 +232,15 @@ export async function showDetailView(anime) {
   if (detailInfoTab) detailInfoTab.classList.add('hidden');
   if (detailCharactersPanel) detailCharactersPanel.classList.add('hidden');
   if (detailRecsPanel) detailRecsPanel.classList.add('hidden');
-  if (detailTrackingExtra) detailTrackingExtra.classList.add('hidden');
-  if (detailStartedAt) detailStartedAt.value = '';
-  if (detailCompletedAt) detailCompletedAt.value = '';
-  if (detailRewatches) detailRewatches.value = '0';
-  if (detailNotesControl) detailNotesControl.classList.add('hidden');
-  if (detailNotes) detailNotes.value = '';
 
   // Clear all stale content immediately — show skeleton so old series doesn't flash
-  if (detailBanner) {
-    detailBanner.style.backgroundImage = '';
-    detailBanner.classList.add('hidden');
-    detailBanner.classList.remove('cover-fallback');
-  }
-  const headerEl = detailCover?.closest('.detail-header');
-  if (headerEl) headerEl.style.removeProperty('--series-color');
-
-  if (detailCover) detailCover.style.display = 'none';
-
+  resetDetailContent();
   if (detailTitle) {
     detailTitle.innerHTML = '<div class="skeleton detail-skeleton-title"></div>';
   }
   if (detailMeta) {
     detailMeta.innerHTML = '<div class="skeleton detail-skeleton-meta"></div>';
   }
-  if (detailStatus) detailStatus.textContent = '';
-  if (detailStatusSelect) detailStatusSelect.value = '';
-  if (detailStatusButtons) detailStatusButtons.innerHTML = '';
-  if (detailInfoStats) detailInfoStats.innerHTML = '';
-  if (detailMetaBlock) detailMetaBlock.innerHTML = '';
-  if (detailCharacters) detailCharacters.innerHTML = '';
-  if (detailRecommendations) detailRecommendations.innerHTML = '';
-  if (detailExternalLinks) detailExternalLinks.innerHTML = '';
-  if (detailDescription) detailDescription.innerHTML = '';
-  if (detailRelations) detailRelations.innerHTML = '';
 
   // Refetch if missing detail fields
   const needsRefresh = !anime.mediaListEntry || !anime.description || !anime.relations || !anime.studios || !anime.characters?.edges;
@@ -357,50 +341,12 @@ export async function showDetailView(anime) {
   }
 
   // Determine user's status and progress
-  let userStatus = 'Not on list';
-  let progress = 0;
-  let statusClass = 'not-on-list';
-
-  if (listEntry) {
-    progress = listEntry.progress || 0;
-    const listStatus = listEntry.status;
-
-    // Action verbs based on media type
-    const progressVerb = isManga ? 'Read' : 'Watched';
-    const planVerb = isManga ? 'Plan to Read' : 'Plan to Watch';
-    const repeatVerb = isManga ? 'Rereading' : 'Rewatching';
-
-    switch(listStatus) {
-      case 'CURRENT':
-        userStatus = `${progressVerb} ${progress}/${totalProgress}`;
-        statusClass = 'watching';
-        break;
-      case 'COMPLETED':
-        userStatus = `Completed ${progress}/${totalProgress}`;
-        statusClass = 'completed';
-        break;
-      case 'PLANNING':
-        userStatus = planVerb;
-        statusClass = 'planning';
-        break;
-      case 'PAUSED':
-        userStatus = `Paused - ${progressVerb} ${progress}/${totalProgress}`;
-        statusClass = 'paused';
-        break;
-      case 'DROPPED':
-        userStatus = `Dropped - ${progressVerb} ${progress}/${totalProgress}`;
-        statusClass = 'dropped';
-        break;
-      case 'REPEATING':
-        userStatus = `${repeatVerb} ${progress}/${totalProgress}`;
-        statusClass = 'rewatching';
-        break;
-    }
-  }
+  const progress = listEntry ? (listEntry.progress || 0) : 0;
+  const statusLine = listStatusText(listEntry?.status, progress, totalProgress, isManga);
 
   if (detailStatus) {
-    detailStatus.textContent = userStatus;
-    detailStatus.className = `detail-status ${statusClass}`;
+    detailStatus.textContent = statusLine.text;
+    detailStatus.className = `detail-status ${statusLine.cls}`;
   }
 
   // Set up status select options (text varies by media type)
@@ -539,448 +485,16 @@ export async function showDetailView(anime) {
     if (detailNotesControl) detailNotesControl.classList.add('hidden');
   }
 
-  // Populate description with show more/less toggle
-  // Populate quick info stats row
-  if (detailInfoStats) {
-    const seasonLabels = { WINTER: 'Winter', SPRING: 'Spring', SUMMER: 'Summer', FALL: 'Fall' };
-    const chips = [];
-
-    if (anime.format) chips.push({ label: anime.format.replace(/_/g, ' '), cls: 'stat-chip--format' });
-    if (anime.season && anime.seasonYear) chips.push({ label: `${seasonLabels[anime.season] || anime.season} ${anime.seasonYear}`, cls: 'stat-chip--season' });
-    if (anime.averageScore) chips.push({ label: `★ ${anime.averageScore}%`, cls: 'stat-chip--score' });
-
-    const genres = (anime.genres || []).slice(0, 8);
-
-    detailInfoStats.innerHTML =
-      chips.map(c => `<span class="detail-stat-chip ${c.cls}">${c.label}</span>`).join('') +
-      genres.map(g => `<span class="detail-stat-chip stat-chip--genre">${g}</span>`).join('');
-  }
-
-  // Populate info tab: dates, studios, producers, source, synonyms
-  if (detailMetaBlock) {
-    detailMetaBlock.innerHTML = '';
-
-    const addSection = (title, buildFn) => {
-      const section = document.createElement('div');
-      section.className = 'detail-info-section';
-      const h5 = document.createElement('h5');
-      h5.textContent = title;
-      section.appendChild(h5);
-      buildFn(section);
-      detailMetaBlock.appendChild(section);
-    };
-
-    const fmtDate = d => {
-      if (!d?.year) return null;
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const m = d.month ? months[d.month - 1] : '';
-      const day = d.day || '';
-      if (m && day) return `${m} ${day}, ${d.year}`;
-      if (m) return `${m} ${d.year}`;
-      return String(d.year);
-    };
-
-    const makeStudioBtn = (studio) => {
-      const btn = document.createElement('button');
-      btn.className = 'detail-info-tag';
-      btn.textContent = studio.name;
-      if (studio.siteUrl) {
-        btn.addEventListener('click', () => chrome.tabs.create({ url: studio.siteUrl }));
-      } else {
-        btn.classList.add('no-link');
-      }
-      return btn;
-    };
-
-    const startStr = fmtDate(anime.startDate);
-    const endStr = fmtDate(anime.endDate);
-    if (startStr || endStr) {
-      addSection('Aired', section => {
-        const row = document.createElement('div');
-        row.className = 'detail-info-dates';
-        if (startStr) {
-          const item = document.createElement('div');
-          item.className = 'date-item';
-          item.innerHTML = `<span class="date-label">Start</span><span class="date-value">${startStr}</span>`;
-          row.appendChild(item);
-        }
-        if (startStr && endStr) {
-          const arrow = document.createElement('span');
-          arrow.className = 'date-arrow';
-          arrow.textContent = '→';
-          row.appendChild(arrow);
-        }
-        if (endStr) {
-          const item = document.createElement('div');
-          item.className = 'date-item';
-          item.innerHTML = `<span class="date-label">End</span><span class="date-value">${endStr}</span>`;
-          row.appendChild(item);
-        }
-        section.appendChild(row);
-      });
-    }
-
-    const studioNodes = anime.studios?.nodes || [];
-    const animStudios = studioNodes.filter(s => s.isAnimationStudio);
-    const producers = studioNodes.filter(s => !s.isAnimationStudio);
-
-    if (animStudios.length > 0) {
-      addSection('Studio', section => {
-        const tags = document.createElement('div');
-        tags.className = 'detail-info-tags';
-        animStudios.forEach(s => tags.appendChild(makeStudioBtn(s)));
-        section.appendChild(tags);
-      });
-    }
-
-    if (producers.length > 0) {
-      addSection('Producers', section => {
-        const tags = document.createElement('div');
-        tags.className = 'detail-info-tags';
-        const PROD_LIMIT = 8;
-        producers.slice(0, PROD_LIMIT).forEach(s => tags.appendChild(makeStudioBtn(s)));
-        section.appendChild(tags);
-        if (producers.length > PROD_LIMIT) {
-          const more = document.createElement('button');
-          more.className = 'detail-inline-more';
-          more.textContent = `+${producers.length - PROD_LIMIT} more`;
-          more.addEventListener('click', () => {
-            producers.slice(PROD_LIMIT).forEach(s => tags.appendChild(makeStudioBtn(s)));
-            more.remove();
-          });
-          section.appendChild(more);
-        }
-      });
-    }
-
-    if (anime.source) {
-      addSection('Source', section => {
-        const badge = document.createElement('span');
-        badge.className = 'detail-info-source';
-        badge.textContent = anime.source.replace(/_/g, ' ');
-        section.appendChild(badge);
-      });
-    }
-
-    const synonyms = (anime.synonyms || []).filter(s => s && s.trim());
-    if (synonyms.length > 0) {
-      addSection('Also Known As', section => {
-        const tags = document.createElement('div');
-        tags.className = 'detail-info-tags';
-        const SYN_LIMIT = 6;
-        synonyms.slice(0, SYN_LIMIT).forEach(syn => {
-          const tag = document.createElement('span');
-          tag.className = 'detail-info-tag no-link';
-          tag.textContent = syn;
-          tags.appendChild(tag);
-        });
-        section.appendChild(tags);
-        if (synonyms.length > SYN_LIMIT) {
-          const more = document.createElement('button');
-          more.className = 'detail-inline-more';
-          more.textContent = `+${synonyms.length - SYN_LIMIT} more`;
-          more.addEventListener('click', () => {
-            synonyms.slice(SYN_LIMIT).forEach(syn => {
-              const tag = document.createElement('span');
-              tag.className = 'detail-info-tag no-link';
-              tag.textContent = syn;
-              tags.appendChild(tag);
-            });
-            more.remove();
-          });
-          section.appendChild(more);
-        }
-      });
-    }
-  }
-
-  if (detailDescription) {
-    const raw = anime.description || 'No description available.';
-    detailDescription.innerHTML = '';
-
-    const textEl = document.createElement('div');
-    textEl.className = 'description-text collapsed';
-    textEl.innerHTML = raw;
-    detailDescription.appendChild(textEl);
-
-    // Use plain-text length to decide — panel may be hidden so scrollHeight is 0
-    const plainLength = textEl.textContent.trim().length;
-    if (plainLength > 200) {
-      const toggle = document.createElement('button');
-      toggle.className = 'description-toggle';
-      toggle.textContent = 'Show more';
-      toggle.addEventListener('click', () => {
-        const isCollapsed = textEl.classList.toggle('collapsed');
-        toggle.textContent = isCollapsed ? 'Show more' : 'Show less';
-      });
-      detailDescription.appendChild(toggle);
-    }
-  }
-
-  // Populate relations
-  if (detailRelations) {
-    detailRelations.innerHTML = '';
-    const relations = anime.relations?.edges || [];
-
-    const relevantTypes = ['PREQUEL', 'SEQUEL', 'PARENT', 'SIDE_STORY', 'SPIN_OFF', 'ALTERNATIVE', 'ADAPTATION', 'SOURCE', 'OTHER', 'COMPILATION', 'CONTAINS', 'SUMMARY'];
-    const typeLabels = {
-      PREQUEL: 'Prequel',
-      SEQUEL: 'Sequel',
-      PARENT: 'Parent Story',
-      SIDE_STORY: 'Side Story',
-      SPIN_OFF: 'Spin-off',
-      ALTERNATIVE: 'Alternative',
-      ADAPTATION: 'Adaptation',
-      SOURCE: 'Source',
-      OTHER: 'Other',
-      COMPILATION: 'Compilation',
-      CONTAINS: 'Contains',
-      SUMMARY: 'Summary'
-    };
-
-    const filtered = relations.filter(e => relevantTypes.includes(e.relationType));
-
-    if (filtered.length === 0) {
-      detailRelations.innerHTML = '<p style="font-size:13px;color:#a0a0a0;">No related entries found.</p>';
-    } else {
-      const REL_INITIAL = 4;
-
-      const buildRelCard = (edge) => {
-        const node = edge.node;
-        const relTitle = getPreferredTitle(node.title);
-        const relCover = node.coverImage?.medium || '';
-        const relType = typeLabels[edge.relationType] || edge.relationType;
-        const relFormat = node.format ? node.format.replace(/_/g, ' ') : '';
-        const listStatus = node.mediaListEntry?.status;
-
-        const card = document.createElement('div');
-        card.className = 'relation-card';
-        card.innerHTML = `
-          ${relCover ? `<img src="${relCover}" alt="${relTitle}" class="relation-cover">` : ''}
-          <div class="relation-info">
-            <div class="relation-type">${relType}</div>
-            <div class="relation-title">${relTitle}</div>
-            ${relFormat ? `<div class="relation-meta">${relFormat}</div>` : ''}
-          </div>
-          ${listStatus ? `<span class="relation-status-badge on-list">${listStatus.charAt(0) + listStatus.slice(1).toLowerCase()}</span>` : ''}
-        `;
-
-        card.addEventListener('click', async () => {
-          const currentResult = await chrome.storage.local.get(['selectedAnime']);
-          if (currentResult.selectedAnime) {
-            pushNavHistory({ anime: currentResult.selectedAnime, mediaType: state.currentMediaType });
-          }
-
-          if (node.type && node.type !== state.currentMediaType) {
-            setMediaType(node.type);
-            const toggleAnime = document.getElementById('toggle-anime');
-            const toggleManga = document.getElementById('toggle-manga');
-            if (toggleAnime && toggleManga) {
-              toggleAnime.classList.toggle('active', node.type === 'ANIME');
-              toggleManga.classList.toggle('active', node.type === 'MANGA');
-            }
-          }
-
-          selectAnime({
-            id: node.id,
-            title: node.title,
-            coverImage: node.coverImage || { large: '', medium: '' },
-            mediaListEntry: node.mediaListEntry || null,
-            status: node.status,
-            type: node.type
-          });
-        });
-
-        return card;
-      };
-
-      filtered.slice(0, REL_INITIAL).forEach(e => detailRelations.appendChild(buildRelCard(e)));
-
-      if (filtered.length > REL_INITIAL) {
-        const btn = document.createElement('button');
-        btn.className = 'detail-show-more-btn';
-        btn.textContent = `Show ${filtered.length - REL_INITIAL} more`;
-        btn.addEventListener('click', () => {
-          filtered.slice(REL_INITIAL).forEach(e => detailRelations.appendChild(buildRelCard(e)));
-          btn.remove();
-        });
-        detailRelations.appendChild(btn);
-      }
-    }
-  }
-
-  // Populate characters (relation-card style, paginated)
-  if (detailCharacters) {
-    detailCharacters.innerHTML = '';
-    const CHAR_BATCH = 12;
-    const roleLabels = { MAIN: 'Main', SUPPORTING: 'Supporting', BACKGROUND: 'Background' };
-
-    const buildCharCard = (edge) => {
-      const char = edge.node;
-      const role = roleLabels[edge.role] || edge.role || '';
-      const card = document.createElement('div');
-      card.className = 'relation-card';
-      if (char.siteUrl) {
-        card.addEventListener('click', () => chrome.tabs.create({ url: char.siteUrl }));
-        card.style.cursor = 'pointer';
-      }
-      card.innerHTML = `
-        ${char.image?.medium ? `<img src="${char.image.medium}" alt="${char.name?.full || ''}" class="relation-cover">` : ''}
-        <div class="relation-info">
-          ${role ? `<div class="relation-type">${role}</div>` : ''}
-          <div class="relation-title">${char.name?.full || ''}</div>
-        </div>
-      `;
-      return card;
-    };
-
-    let charEdges = [...(anime.characters?.edges || [])];
-    let hasNextPage = anime.characters?.pageInfo?.hasNextPage ?? false;
-    let nextPage = 2;
-    let shown = 0;
-
-    const list = document.createElement('div');
-    list.className = 'relations-list';
-    detailCharacters.appendChild(list);
-
-    const btn = document.createElement('button');
-    btn.className = 'detail-show-more-btn';
-
-    const updateBtn = () => {
-      const buffered = charEdges.length - shown;
-      if (buffered > 0 || hasNextPage) {
-        const displayCount = Math.min(CHAR_BATCH, buffered > 0 ? buffered : CHAR_BATCH);
-        const suffix = hasNextPage && buffered <= CHAR_BATCH ? '+' : '';
-        btn.textContent = `Show ${displayCount}${suffix} more`;
-        if (!btn.parentNode) detailCharacters.appendChild(btn);
-      } else {
-        btn.remove();
-      }
-    };
-
-    const showBatch = () => {
-      charEdges.slice(shown, shown + CHAR_BATCH).forEach(e => list.appendChild(buildCharCard(e)));
-      shown = Math.min(shown + CHAR_BATCH, charEdges.length);
-      updateBtn();
-    };
-
-    btn.addEventListener('click', async () => {
-      if (charEdges.length > shown) {
-        showBatch();
-      } else if (hasNextPage) {
-        btn.textContent = 'Loading...';
-        btn.disabled = true;
-        try {
-          const result = await AniListAPI.getMediaCharacters(anime.id, nextPage);
-          charEdges = charEdges.concat(result.edges || []);
-          hasNextPage = result.pageInfo?.hasNextPage ?? false;
-          nextPage++;
-          btn.disabled = false;
-          showBatch();
-        } catch {
-          btn.textContent = 'Failed to load — retry';
-          btn.disabled = false;
-        }
-      }
-    });
-
-    if (charEdges.length > 0) {
-      showBatch();
-    } else {
-      detailCharacters.innerHTML = '<p style="font-size:13px;color:#a0a0a0;">No characters found.</p>';
-    }
-  }
-
-  // Populate recommendations (relation-card style)
-  if (detailRecommendations) {
-    detailRecommendations.innerHTML = '';
-    const recNodes = (anime.recommendations?.nodes || []).filter(n => n.mediaRecommendation);
-    const REC_LIMIT = 6;
-    if (recNodes.length > 0) {
-      const list = document.createElement('div');
-      list.className = 'relations-list';
-      const buildRecCard = (rec) => {
-        const media = rec.mediaRecommendation;
-        const recTitle = getPreferredTitle(media.title);
-        const recCover = media.coverImage?.large || media.coverImage?.medium || '';
-        const card = document.createElement('div');
-        card.className = 'relation-card';
-        card.innerHTML = `
-          ${recCover ? `<img src="${recCover}" alt="${recTitle}" class="relation-cover">` : ''}
-          <div class="relation-info">
-            <div class="relation-title">${recTitle}</div>
-          </div>
-        `;
-        card.addEventListener('click', async () => {
-          const currentResult = await chrome.storage.local.get(['selectedAnime']);
-          if (currentResult.selectedAnime) {
-            pushNavHistory({ anime: currentResult.selectedAnime, mediaType: state.currentMediaType });
-          }
-          selectAnime({ id: media.id, title: media.title, coverImage: media.coverImage || { large: '', medium: '' }, mediaListEntry: null });
-        });
-        return card;
-      };
-      recNodes.slice(0, REC_LIMIT).forEach(r => list.appendChild(buildRecCard(r)));
-      detailRecommendations.appendChild(list);
-      if (recNodes.length > REC_LIMIT) {
-        const btn = document.createElement('button');
-        btn.className = 'detail-show-more-btn';
-        btn.textContent = `Show ${recNodes.length - REC_LIMIT} more`;
-        btn.addEventListener('click', () => {
-          recNodes.slice(REC_LIMIT).forEach(r => list.appendChild(buildRecCard(r)));
-          btn.remove();
-        });
-        detailRecommendations.appendChild(btn);
-      }
-    } else {
-      detailRecommendations.innerHTML = '<p style="font-size:13px;color:#a0a0a0;">No recommendations found.</p>';
-    }
-  }
-
-  // Populate all external links
-  if (detailExternalLinks) {
-    detailExternalLinks.innerHTML = '';
-    const allLinks = anime.externalLinks || [];
-    const sorted = [...allLinks].sort((a, b) => (a.type === 'STREAMING' ? -1 : 1) - (b.type === 'STREAMING' ? -1 : 1));
-    if (sorted.length > 0) {
-      const h4 = document.createElement('h4');
-      h4.textContent = 'External Links';
-      detailExternalLinks.appendChild(h4);
-      const grid = document.createElement('div');
-      grid.className = 'external-links-grid';
-      for (const link of sorted) {
-        const btn = document.createElement('button');
-        btn.className = 'external-link-btn';
-        if (link.icon) {
-          const img = document.createElement('img');
-          img.src = link.icon;
-          img.alt = link.site;
-          img.className = 'ext-link-icon';
-          btn.appendChild(img);
-        }
-        const nameEl = document.createElement('span');
-        nameEl.className = 'ext-link-name';
-        nameEl.textContent = link.site;
-        btn.appendChild(nameEl);
-        if (link.language) {
-          const lang = document.createElement('span');
-          lang.className = 'ext-link-lang';
-          lang.textContent = link.language;
-          btn.appendChild(lang);
-        }
-        btn.addEventListener('click', () => chrome.tabs.create({ url: link.url }));
-        grid.appendChild(btn);
-      }
-      detailExternalLinks.appendChild(grid);
-    }
-  }
+  // Populate the Info, Characters and Recs tabs
+  if (detailInfoStats) renderStats(anime, detailInfoStats);
+  if (detailMetaBlock) renderInfo(anime, detailMetaBlock);
+  if (detailDescription) renderDescription(anime, detailDescription);
+  if (detailRelations) renderRelations(anime, detailRelations, openRelatedMedia);
+  if (detailCharacters) renderCharacters(anime, detailCharacters);
+  if (detailRecommendations) renderRecommendations(anime, detailRecommendations, openRelatedMedia);
+  if (detailExternalLinks) renderExternalLinks(anime, detailExternalLinks);
 
   captureCleanSnapshot();
-}
-
-function todayAsFuzzyDate() {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
 }
 
 // Patch the local anime entry and update only the tracking UI — no API refetch, no full re-render
@@ -1007,42 +521,10 @@ async function patchLocalEntry(anime, savedEntry) {
   }
 
   // Update the status text line
-  const progressVerb = isManga ? 'Read' : 'Watched';
-  const planVerb = isManga ? 'Plan to Read' : 'Plan to Watch';
-  const repeatVerb = isManga ? 'Rereading' : 'Rewatching';
-
-  let userStatus = 'Not on list';
-  let statusClass = 'not-on-list';
-  switch (status) {
-    case 'CURRENT':
-      userStatus = `${progressVerb} ${progress}/${totalProgress}`;
-      statusClass = 'watching';
-      break;
-    case 'COMPLETED':
-      userStatus = `Completed ${progress}/${totalProgress}`;
-      statusClass = 'completed';
-      break;
-    case 'PLANNING':
-      userStatus = planVerb;
-      statusClass = 'planning';
-      break;
-    case 'PAUSED':
-      userStatus = `Paused - ${progressVerb} ${progress}/${totalProgress}`;
-      statusClass = 'paused';
-      break;
-    case 'DROPPED':
-      userStatus = `Dropped - ${progressVerb} ${progress}/${totalProgress}`;
-      statusClass = 'dropped';
-      break;
-    case 'REPEATING':
-      userStatus = `${repeatVerb} ${progress}/${totalProgress}`;
-      statusClass = 'rewatching';
-      break;
-  }
-
+  const statusLine = listStatusText(status, progress, totalProgress, isManga);
   if (detailStatus) {
-    detailStatus.textContent = userStatus;
-    detailStatus.className = `detail-status ${statusClass}`;
+    detailStatus.textContent = statusLine.text;
+    detailStatus.className = `detail-status ${statusLine.cls}`;
   }
 
   // Update tracking inputs
@@ -1105,14 +587,7 @@ export async function updateProgressFromDetail() {
 
     const savedEntry = await AniListAPI.updateProgress(anime.id, progress, targetStatus, score, progressVolumes, startedAt, completedAt, repeat, notes);
 
-    const statusNames = {
-      'CURRENT': isManga ? 'Reading' : 'Watching',
-      'PLANNING': isManga ? 'Plan to Read' : 'Plan to Watch',
-      'COMPLETED': 'Completed', 'PAUSED': 'Paused',
-      'DROPPED': 'Dropped',
-      'REPEATING': isManga ? 'Rereading' : 'Rewatching'
-    };
-    showSuccess(`Saved! (${statusNames[targetStatus]})`);
+    showSuccess(`Saved! (${statusName(targetStatus, isManga)})`);
 
     await patchLocalEntry(anime, savedEntry);
 
@@ -1171,14 +646,7 @@ export async function incrementAndSave(plusBtn) {
 
     const savedEntry = await AniListAPI.updateProgress(anime.id, next, targetStatus, score, progressVolumes, startedAt, completedAt);
 
-    const statusNames = {
-      'CURRENT': isManga ? 'Reading' : 'Watching',
-      'PLANNING': isManga ? 'Plan to Read' : 'Plan to Watch',
-      'COMPLETED': 'Completed', 'PAUSED': 'Paused',
-      'DROPPED': 'Dropped',
-      'REPEATING': isManga ? 'Rereading' : 'Rewatching'
-    };
-    showSuccess(`Saved! ${targetStatus !== selectedStatus ? `(${statusNames[targetStatus]})` : `${isManga ? 'Ch.' : 'Ep.'} ${next}`}`);
+    showSuccess(`Saved! ${targetStatus !== selectedStatus ? `(${statusName(targetStatus, isManga)})` : `${isManga ? 'Ch.' : 'Ep.'} ${next}`}`);
 
     await patchLocalEntry(anime, savedEntry);
 

@@ -11,14 +11,7 @@ const CONFIG = {
   ANILIST_AUTH_URL: 'https://anilist.co/api/v2/oauth/authorize',
 
   // Backend API Configuration
-  BACKEND_URL: 'https://anilist-tracker-production.up.railway.app',
-
-  // Extension settings
-  SETTINGS: {
-    AUTO_UPDATE: true,
-    NOTIFICATIONS: true,
-    DETECTION_INTERVAL: 5000 // ms
-  }
+  BACKEND_URL: 'https://anilist-tracker-production.up.railway.app'
 };
 
 // Export for use in other scripts

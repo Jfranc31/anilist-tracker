@@ -43,9 +43,6 @@ const AniListAPI = {
         authUrl.searchParams.append('redirect_uri', this.REDIRECT_URI);
         authUrl.searchParams.append('response_type', 'code');
 
-        console.log('Starting OAuth flow...');
-        console.log('Auth URL:', authUrl.toString());
-
         // Create a new tab for authentication
         chrome.tabs.create({ url: authUrl.toString() }, (tab) => {
           const authTabId = tab.id;
@@ -57,12 +54,8 @@ const AniListAPI = {
             // Get the current URL (from changeInfo or tab object)
             const currentUrl = changeInfo.url || updatedTab.url;
 
-            console.log('Tab updated:', { tabId, url: currentUrl, status: changeInfo.status });
-
             // Check if the URL is the redirect URL with a code
             if (currentUrl && currentUrl.startsWith(this.REDIRECT_URI)) {
-              console.log('Redirect captured:', currentUrl);
-
               // Remove the listener
               chrome.tabs.onUpdated.removeListener(listener);
               chrome.tabs.onRemoved.removeListener(closeListener);
@@ -78,16 +71,12 @@ const AniListAPI = {
                 return;
               }
 
-              console.log('Authorization code received');
-
               try {
                 // Exchange code for token via backend
                 const token = await this.exchangeCodeForToken(code);
-                console.log('Access token received');
 
                 // Get user data
                 const user = await this.getCurrentUser(token);
-                console.log('User authenticated:', user.name);
 
                 resolve({ token, user });
               } catch (error) {
@@ -225,7 +214,6 @@ const AniListAPI = {
         console.warn(`Rate limited. Retry after ${retryAfter} seconds`);
         if (retryCount < MAX_RETRIES) {
           const waitMs = (retryAfter + 1) * 1000; // wait the full period + 1s buffer
-          console.log(`Auto-retrying rate-limited request in ${waitMs}ms...`);
           await new Promise(resolve => setTimeout(resolve, waitMs));
           return this.query(query, variables, token, retryCount + 1);
         }
