@@ -30,11 +30,7 @@ async function initializeExtension() {
   try {
     await chrome.storage.local.set({
       isAuthenticated: false,
-      user: null,
-      settings: {
-        autoUpdate: true,
-        notifications: true
-      }
+      user: null
     });
 
     console.log('Extension initialized successfully');
@@ -58,17 +54,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleProgressUpdate(message.data)
         .then(sendResponse)
         .catch(error => sendResponse({ error: error.message }));
-      return true;
-
-    case 'GET_USER_DATA':
-      handleGetUserData()
-        .then(sendResponse)
-        .catch(error => sendResponse({ error: error.message }));
-      return true;
-
-    case 'ANIME_DETECTED':
-      console.log('Anime detected:', message.data);
-      sendResponse({ success: true });
       return true;
 
     default:
@@ -104,11 +89,4 @@ async function handleProgressUpdate(data) {
     console.error('Progress update failed:', error);
     return { success: false, error: error.message };
   }
-}
-
-// Get user data handler
-async function handleGetUserData() {
-  console.log('Getting user data...');
-  const result = await chrome.storage.local.get(['user', 'isAuthenticated']);
-  return result;
 }

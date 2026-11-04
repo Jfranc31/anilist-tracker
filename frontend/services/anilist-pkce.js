@@ -330,12 +330,10 @@ const AniListAPI = {
           id
           name
           avatar {
-            large
             medium
           }
           bannerImage
           options {
-            displayAdultContent
             titleLanguage
             profileColor
           }
@@ -351,38 +349,6 @@ const AniListAPI = {
   },
 
   /**
-   * Search for anime by title
-   */
-  async searchAnime(title) {
-    const query = `
-      query ($search: String) {
-        Media(search: $search, type: ANIME) {
-          id
-          title {
-            romaji
-            english
-            native
-          }
-          coverImage {
-            large
-            medium
-          }
-          episodes
-          status
-          description
-          averageScore
-          season
-          seasonYear
-          format
-        }
-      }
-    `;
-
-    const data = await this.query(query, { search: title });
-    return data.Media;
-  },
-
-  /**
    * Search for multiple anime/manga (returns list)
    * Now includes user's list status if they have the media on their list
    */
@@ -394,9 +360,6 @@ const AniListAPI = {
       query ($search: String, $page: Int, $perPage: Int, $type: MediaType${genreVar}) {
         Page(page: $page, perPage: $perPage) {
           pageInfo {
-            total
-            currentPage
-            lastPage
             hasNextPage
           }
           media(search: $search, type: $type, sort: POPULARITY_DESC${genreFilter}) {
@@ -426,10 +389,9 @@ const AniListAPI = {
             endDate { year month day }
             studios { nodes { name isAnimationStudio siteUrl } }
             source
-            externalLinks { url site type color icon language }
+            externalLinks { url site type icon language }
             description(asHtml: true)
             nextAiringEpisode {
-              airingAt
               timeUntilAiring
               episode
             }
@@ -461,7 +423,6 @@ const AniListAPI = {
                   status
                   mediaListEntry {
                     status
-                    progress
                   }
                 }
               }
@@ -483,46 +444,6 @@ const AniListAPI = {
   },
 
   /**
-   * Get user's anime list entry for a specific anime
-   */
-  async getMediaListEntry(mediaId) {
-    const query = `
-      query ($mediaId: Int) {
-        MediaList(mediaId: $mediaId) {
-          id
-          mediaId
-          status
-          progress
-          progressVolumes
-          score
-          notes
-          repeat
-          media {
-            id
-            title {
-              romaji
-              english
-              native
-            }
-            episodes
-            coverImage {
-              large
-              medium
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const data = await this.query(query, { mediaId });
-      return data.MediaList;
-    } catch (error) {
-      return null;
-    }
-  },
-
-  /**
    * Get user's anime/manga list by status
    */
   async getUserAnimeList(status = null, type = 'ANIME') {
@@ -532,10 +453,8 @@ const AniListAPI = {
           lists {
             entries {
               id
-              mediaId
               status
               progress
-              progressVolumes
               score
               repeat
               updatedAt
@@ -551,18 +470,13 @@ const AniListAPI = {
                   medium
                   color
                 }
-                bannerImage
                 episodes
                 chapters
-                volumes
                 status
                 averageScore
-                season
-                seasonYear
                 format
                 genres
                 nextAiringEpisode {
-                  airingAt
                   timeUntilAiring
                   episode
                 }
@@ -635,7 +549,7 @@ const AniListAPI = {
     const query = `
       query ($type: MediaType, $page: Int, $perPage: Int${genreVar}) {
         Page(page: $page, perPage: $perPage) {
-          pageInfo { total currentPage lastPage hasNextPage }
+          pageInfo { hasNextPage }
           media(type: $type, sort: TRENDING_DESC${genreFilter}) {
             id
             title { romaji english native }
@@ -646,11 +560,11 @@ const AniListAPI = {
             synonyms startDate { year month day } endDate { year month day }
             studios { nodes { name isAnimationStudio } }
             source
-            externalLinks { url site type color icon language }
+            externalLinks { url site type icon language }
             description(asHtml: true)
-            nextAiringEpisode { airingAt timeUntilAiring episode }
+            nextAiringEpisode { timeUntilAiring episode }
             mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
+            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
           }
         }
       }
@@ -671,7 +585,7 @@ const AniListAPI = {
     const query = `
       query ($season: MediaSeason, $seasonYear: Int, $type: MediaType, $page: Int, $perPage: Int${genreVar}) {
         Page(page: $page, perPage: $perPage) {
-          pageInfo { total currentPage lastPage hasNextPage }
+          pageInfo { hasNextPage }
           media(type: $type, season: $season, seasonYear: $seasonYear, sort: POPULARITY_DESC${genreFilter}) {
             id
             title { romaji english native }
@@ -682,11 +596,11 @@ const AniListAPI = {
             synonyms startDate { year month day } endDate { year month day }
             studios { nodes { name isAnimationStudio } }
             source
-            externalLinks { url site type color icon language }
+            externalLinks { url site type icon language }
             description(asHtml: true)
-            nextAiringEpisode { airingAt timeUntilAiring episode }
+            nextAiringEpisode { timeUntilAiring episode }
             mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
+            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
           }
         }
       }
@@ -707,7 +621,7 @@ const AniListAPI = {
     const query = `
       query ($type: MediaType, $page: Int, $perPage: Int${genreVar}) {
         Page(page: $page, perPage: $perPage) {
-          pageInfo { total currentPage lastPage hasNextPage }
+          pageInfo { hasNextPage }
           media(type: $type, sort: POPULARITY_DESC${genreFilter}) {
             id
             title { romaji english native }
@@ -718,11 +632,11 @@ const AniListAPI = {
             synonyms startDate { year month day } endDate { year month day }
             studios { nodes { name isAnimationStudio } }
             source
-            externalLinks { url site type color icon language }
+            externalLinks { url site type icon language }
             description(asHtml: true)
-            nextAiringEpisode { airingAt timeUntilAiring episode }
+            nextAiringEpisode { timeUntilAiring episode }
             mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
+            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
           }
         }
       }
@@ -743,7 +657,7 @@ const AniListAPI = {
     const query = `
       query ($type: MediaType, $page: Int, $perPage: Int${genreVar}) {
         Page(page: $page, perPage: $perPage) {
-          pageInfo { total currentPage lastPage hasNextPage }
+          pageInfo { hasNextPage }
           media(type: $type, sort: SCORE_DESC${genreFilter}) {
             id
             title { romaji english native }
@@ -754,11 +668,11 @@ const AniListAPI = {
             synonyms startDate { year month day } endDate { year month day }
             studios { nodes { name isAnimationStudio } }
             source
-            externalLinks { url site type color icon language }
+            externalLinks { url site type icon language }
             description(asHtml: true)
-            nextAiringEpisode { airingAt timeUntilAiring episode }
+            nextAiringEpisode { timeUntilAiring episode }
             mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status progress } } } }
+            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
           }
         }
       }

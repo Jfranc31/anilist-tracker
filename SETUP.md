@@ -48,18 +48,7 @@ Before you can use the extension, you need to register it with AniList to get OA
    - Go to `chrome://extensions/`
    - Click the reload icon on your extension
 
-## Step 4: Update anilist.js to Use Config
-
-1. Open `frontend/services/anilist.js`
-
-2. Update the CLIENT_ID line to use the config:
-   ```javascript
-   CLIENT_ID: CONFIG.ANILIST_CLIENT_ID,
-   ```
-
-3. Make sure config.js is loaded in your HTML files before anilist.js
-
-## Step 5: Test Authentication
+## Step 4: Test Authentication
 
 1. Click on the extension icon in your browser
 2. Click "Connect to AniList"
@@ -88,8 +77,8 @@ Make sure to include the config.js file in your popup.html:
 ```html
 <script src="../config.js"></script>
 <script src="../utils/storage.js"></script>
-<script src="../services/anilist.js"></script>
-<script src="popup.js"></script>
+<script src="../services/anilist-pkce.js"></script>
+<script type="module" src="popup-refactored.js"></script>
 ```
 
 ### For Production

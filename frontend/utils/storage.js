@@ -8,8 +8,6 @@ const Storage = {
     USER: 'user',
     USER_CACHE: 'userCache',
     IS_AUTHENTICATED: 'isAuthenticated',
-    CURRENT_ANIME: 'currentAnime',
-    SETTINGS: 'settings',
     APPEARANCE: 'appearanceSettings'
   },
 
@@ -93,37 +91,9 @@ const Storage = {
     return !!token;
   },
 
-  async getCurrentAnime() {
-    return await this.get(this.KEYS.CURRENT_ANIME);
-  },
-
-  async getSettings() {
-    const settings = await this.get(this.KEYS.SETTINGS);
-    return settings || {
-      autoUpdate: true,
-      notifications: true
-    };
-  },
-
   // Specific setters
-  async setAccessToken(token) {
-    return await this.set(this.KEYS.ACCESS_TOKEN, token);
-  },
-
   async setUser(user) {
     return await this.set(this.KEYS.USER, user);
-  },
-
-  async setAuthenticated(isAuth) {
-    return await this.set(this.KEYS.IS_AUTHENTICATED, isAuth);
-  },
-
-  async setCurrentAnime(anime) {
-    return await this.set(this.KEYS.CURRENT_ANIME, anime);
-  },
-
-  async setSettings(settings) {
-    return await this.set(this.KEYS.SETTINGS, settings);
   },
 
   async getAppearance() {

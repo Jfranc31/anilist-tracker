@@ -54,7 +54,7 @@ frontend/
 ├── background/            # Background service worker
 │   └── background.js
 ├── services/              # API services
-│   └── anilist.js
+│   └── anilist-pkce.js
 ├── utils/                 # Utilities
 │   └── storage.js
 └── assets/                # Icons and images

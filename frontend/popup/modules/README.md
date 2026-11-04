@@ -179,4 +179,4 @@ await showDetailView(animeObject);
 
 ## Migration Notes
 
-The original `popup.js` has been refactored into these modules. The old version is kept as a backup for reference if needed. All functionality remains the same, just better organized.
+`popup-refactored.js` is the popup entry point. These modules hold the popup behavior.
