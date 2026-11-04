@@ -12,6 +12,27 @@ function formatTimeUntilAiring(seconds) {
   return `${m}m`;
 }
 
+// The status line on a card, e.g. "Watched 5/12" or "Paused (3/12)"
+function cardStatus(listEntry, totalProgress, isManga) {
+  if (!listEntry) return { text: 'Not on list', cls: 'not-on-list', progress: 0 };
+  const progress = listEntry.progress || 0;
+
+  // Action verbs based on media type
+  const progressVerb = isManga ? 'Read' : 'Watched';
+  const planVerb = isManga ? 'Plan to Read' : 'Plan to Watch';
+  const repeatVerb = isManga ? 'Rereading' : 'Rewatching';
+
+  switch (listEntry.status) {
+    case 'CURRENT':   return { text: `${progressVerb} ${progress}/${totalProgress}`, cls: 'watching', progress };
+    case 'COMPLETED': return { text: `Completed (${progress}/${totalProgress})`, cls: 'completed', progress };
+    case 'PLANNING':  return { text: planVerb, cls: 'planning', progress };
+    case 'PAUSED':    return { text: `Paused (${progress}/${totalProgress})`, cls: 'paused', progress };
+    case 'DROPPED':   return { text: `Dropped (${progress}/${totalProgress})`, cls: 'dropped', progress };
+    case 'REPEATING': return { text: `${repeatVerb} (${progress}/${totalProgress})`, cls: 'rewatching', progress };
+    default:          return { text: 'Not on list', cls: 'not-on-list', progress };
+  }
+}
+
 export async function createResultCard(anime, index = 0, options = {}) {
   const card = document.createElement('div');
   card.className = 'result-card';
@@ -56,46 +77,7 @@ export async function createResultCard(anime, index = 0, options = {}) {
   }
 
   // Determine user's status and progress
-  let userStatus = 'Not on list';
-  let progress = 0;
-  let statusClass = 'not-on-list';
-
-  if (listEntry) {
-    progress = listEntry.progress || 0;
-    const listStatus = listEntry.status;
-
-    // Action verbs based on media type
-    const progressVerb = isManga ? 'Read' : 'Watched';
-    const planVerb = isManga ? 'Plan to Read' : 'Plan to Watch';
-    const repeatVerb = isManga ? 'Rereading' : 'Rewatching';
-
-    switch(listStatus) {
-      case 'CURRENT':
-        userStatus = `${progressVerb} ${progress}/${totalProgress}`;
-        statusClass = 'watching';
-        break;
-      case 'COMPLETED':
-        userStatus = `Completed (${progress}/${totalProgress})`;
-        statusClass = 'completed';
-        break;
-      case 'PLANNING':
-        userStatus = planVerb;
-        statusClass = 'planning';
-        break;
-      case 'PAUSED':
-        userStatus = `Paused (${progress}/${totalProgress})`;
-        statusClass = 'paused';
-        break;
-      case 'DROPPED':
-        userStatus = `Dropped (${progress}/${totalProgress})`;
-        statusClass = 'dropped';
-        break;
-      case 'REPEATING':
-        userStatus = `${repeatVerb} (${progress}/${totalProgress})`;
-        statusClass = 'rewatching';
-        break;
-    }
-  }
+  const { text: userStatus, cls: statusClass, progress } = cardStatus(listEntry, totalProgress, isManga);
 
   const nextEp = !isManga && anime.nextAiringEpisode;
   const airingBadge = nextEp
@@ -143,11 +125,30 @@ export async function createResultCard(anime, index = 0, options = {}) {
       quickAddBtn.textContent = '...';
 
       try {
-        await AniListAPI.updateProgress(anime.id, 0, 'PLANNING');
+        // This card may come from a cache that is up to an hour old. Check AniList
+        // first: saving Planning/0 over an existing entry would wipe its progress.
+        const { entry: liveEntry } = await AniListAPI.getListEntry(anime.id);
+        const statusEl = card.querySelector('.result-status');
+
+        if (liveEntry) {
+          anime.mediaListEntry = liveEntry;
+          const live = cardStatus(liveEntry, totalProgress, isManga);
+          if (statusEl) {
+            statusEl.textContent = live.text;
+            statusEl.className = `result-status ${live.cls}`;
+          }
+          quickAddBtn.remove();
+          showSuccess('Already on your list', 2000);
+          await Storage.clearMediaCaches(); // the cached card was out of date
+          return;
+        }
+
+        const saved = await AniListAPI.updateProgress(anime.id, 0, 'PLANNING');
+        anime.mediaListEntry = saved;
+        await Storage.clearMediaCaches();
 
         showSuccess(`Added to ${isManga ? 'Plan to Read' : 'Plan to Watch'}`, 2000);
 
-        const statusEl = card.querySelector('.result-status');
         const planVerb = isManga ? 'Plan to Read' : 'Plan to Watch';
         if (statusEl) {
           statusEl.textContent = planVerb;

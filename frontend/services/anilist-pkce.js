@@ -412,6 +412,24 @@ const AniListAPI = {
   },
 
   /**
+   * The user's current list entry for one title, straight from AniList (null if not on
+   * the list). Small query used before writes that must not trust cached data.
+   */
+  async getListEntry(mediaId) {
+    const query = `
+      query ($id: Int) {
+        Media(id: $id) {
+          id
+          chapters
+          mediaListEntry { id status progress progressVolumes score }
+        }
+      }
+    `;
+    const data = await this.query(query, { id: mediaId });
+    return { chapters: data.Media.chapters, entry: data.Media.mediaListEntry };
+  },
+
+  /**
    * Search anime/manga by title (includes the user's list status for each result)
    */
   async searchAnimeList(title, page = 1, perPage = 10, type = 'ANIME', genres = null) {

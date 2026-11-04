@@ -518,6 +518,12 @@ async function patchLocalEntry(anime, savedEntry) {
   if (detailNotesControl) detailNotesControl.classList.remove('hidden');
   if (detailNotes) detailNotes.value = notes || '';
 
+  // Keep the page widget in sync if this manga is pinned, so it never shows an old count
+  const { pinnedManga } = await chrome.storage.local.get('pinnedManga');
+  if (pinnedManga?.id === anime.id) {
+    await chrome.storage.local.set({ pinnedManga: { ...pinnedManga, progress, status, score, progressVolumes } });
+  }
+
   // Persist to storage with error handling
   const result = await Storage.setWithFeedback('selectedAnime', anime);
   if (!result.success) {
@@ -595,8 +601,8 @@ export async function updateProgressFromDetail() {
 
     await patchLocalEntry(anime, savedEntry);
 
-    // Clear list caches so updated data is fetched next time
-    await Storage.clearListCaches(state.currentMediaType);
+    // Clear cached lists and browse results so no card shows an outdated status
+    await Storage.clearMediaCaches();
   } catch (error) {
     console.error('Update failed:', error);
     handleAPIError(error, 'Failed to update. Please try again.');
@@ -654,8 +660,8 @@ export async function incrementAndSave(plusBtn) {
 
     await patchLocalEntry(anime, savedEntry);
 
-    // Clear list caches so updated data is fetched next time
-    await Storage.clearListCaches(state.currentMediaType);
+    // Clear cached lists and browse results so no card shows an outdated status
+    await Storage.clearMediaCaches();
   } catch (error) {
     console.error('Increment save failed:', error);
     handleAPIError(error, 'Failed to save. Please try again.');
@@ -693,11 +699,18 @@ async function removeFromList(entryId) {
     confirmEl.remove();
     try {
       await AniListAPI.deleteMediaEntry(entryId);
+
+      // A manga that is no longer on the list can't stay pinned to the widget
+      const { pinnedManga, selectedAnime } = await chrome.storage.local.get(['pinnedManga', 'selectedAnime']);
+      if (pinnedManga && pinnedManga.id === selectedAnime?.id) {
+        await chrome.storage.local.remove('pinnedManga');
+      }
+
       const isManga = state.currentMediaType === 'MANGA';
       showSuccess(`Removed from your ${isManga ? 'manga' : 'anime'} list.`);
 
-      // Clear list caches so updated data is fetched next time
-      await Storage.clearListCaches(state.currentMediaType);
+      // Clear cached lists and browse results so no card shows an outdated status
+      await Storage.clearMediaCaches();
 
       const result = await chrome.storage.local.get(['selectedAnime']);
       if (result.selectedAnime) {

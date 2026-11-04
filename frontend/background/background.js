@@ -39,8 +39,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .catch(error => sendResponse({ error: error.message }));
       return true; // Keep channel open for async response
 
-    case 'UPDATE_PROGRESS':
-      handleProgressUpdate(message.data)
+    case 'INCREMENT_CHAPTER':
+      handleIncrementChapter(message.data)
         .then(sendResponse)
         .catch(error => sendResponse({ error: error.message }));
       return true;
@@ -66,13 +66,27 @@ async function handleAuthentication() {
   }
 }
 
-// Progress update handler
-async function handleProgressUpdate(data) {
+// +1 chapter from the widget. Reads the current progress from AniList and saves
+// current + 1, so a widget showing an old number can never roll progress back.
+async function handleIncrementChapter({ mediaId }) {
   try {
-    const result = await AniListAPI.updateProgress(data.mediaId, data.progress, data.status);
-    return { success: true, result };
+    const { chapters, entry } = await AniListAPI.getListEntry(mediaId);
+    if (!entry) {
+      return { success: false, notOnList: true };
+    }
+
+    const next = (entry.progress || 0) + 1;
+    if (chapters && next > chapters) {
+      return { success: false, atMax: true, entry, chapters };
+    }
+
+    const autoComplete = chapters && next >= chapters;
+    const status = autoComplete ? 'COMPLETED' : (entry.status || 'CURRENT');
+    const saved = await AniListAPI.updateProgress(mediaId, next, status);
+    await Storage.clearMediaCaches(); // cached lists/browse results now show old progress
+    return { success: true, entry: saved, chapters };
   } catch (error) {
-    console.error('Progress update failed:', error);
-    return { success: false, error: error.message };
+    console.error('Chapter increment failed:', error);
+    return { success: false, error: error.message || 'Failed to save' };
   }
 }

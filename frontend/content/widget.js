@@ -22,8 +22,11 @@
         pinned = null;
         removeWidget();
       } else {
+        // Only pinning a different manga brings back a widget closed on this page;
+        // progress updates (from the popup or another tab) must not.
+        if (newVal.id !== pinned?.id) dismissedThisPage = false;
         pinned = newVal;
-        dismissedThisPage = false; // new pin action resets dismiss state
+        if (dismissedThisPage) return;
         if (widget) {
           populateWidget(); // updates title, cover, AND progress
         } else {
@@ -146,25 +149,38 @@
   async function incrementChapter() {
     if (!pinned) return;
 
-    const next = pinned.progress + 1;
-    if (pinned.chapters && next > pinned.chapters) return;
-
-    const autoComplete = pinned.chapters && next >= pinned.chapters;
-    const targetStatus = autoComplete ? 'COMPLETED' : (pinned.status || 'CURRENT');
-
     const plusBtn = widget.querySelector('.atw-plus-btn');
     plusBtn.disabled = true;
     plusBtn.textContent = '...';
 
     try {
+      // The background script adds one to AniList's *current* progress, so this
+      // can't roll back progress that was changed elsewhere since the pin.
       const response = await chrome.runtime.sendMessage({
-        type: 'UPDATE_PROGRESS',
-        data: { mediaId: pinned.id, progress: next, status: targetStatus }
+        type: 'INCREMENT_CHAPTER',
+        data: { mediaId: pinned.id }
       });
 
+      if (response && response.notOnList) {
+        // Removed from the list (in the popup or on AniList): unpin instead of re-adding it
+        showToast('Not on your list anymore — unpinned', true);
+        setTimeout(() => chrome.storage.local.remove('pinnedManga'), 2500);
+        return;
+      }
+
+      if (response && response.atMax) {
+        pinned.progress = response.entry.progress;
+        await chrome.storage.local.set({ pinnedManga: pinned });
+        showToast('Already at the final chapter', true);
+        return;
+      }
+
       if (response && response.success) {
+        const next = response.entry.progress;
+        const targetStatus = response.entry.status;
         pinned.progress = next;
         pinned.status = targetStatus;
+        if (response.chapters) pinned.chapters = response.chapters;
 
         // Update both pinnedManga and selectedAnime so the popup reflects
         // the new count when it next opens

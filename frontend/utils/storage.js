@@ -11,6 +11,14 @@ const Storage = {
     APPEARANCE: 'appearanceSettings'
   },
 
+  // Everything that belongs to the signed-in account. Cleared on logout and before a
+  // new login so one account never sees (or writes to) another account's data.
+  // Device preferences (appearanceSettings, currentMediaType) are kept.
+  ACCOUNT_KEYS: ['accessToken', 'user', 'isAuthenticated', 'userCache', 'userStatistics', 'selectedAnime', 'pinnedManga'],
+
+  // Cached AniList results that include the user's list status for each title
+  MEDIA_CACHE_PREFIXES: ['list_', 'browse_', 'seasonCache_'],
+
   // Get a value from storage
   async get(key) {
     try {
@@ -166,22 +174,30 @@ const Storage = {
     return await this.setCache(key, data);
   },
 
-  // Clear all list caches for a media type (call after updates)
-  async clearListCaches(mediaType) {
-    const statuses = ['CURRENT', 'PLANNING', 'COMPLETED', 'PAUSED', 'DROPPED', 'REPEATING'];
-    const keys = statuses.map(status => `list_${mediaType}_${status}`);
-
+  // Remove every cached list/browse/season result. Call after any change to the
+  // user's list so no cached card shows an outdated status (or a stale "+" button).
+  async clearMediaCaches() {
     try {
-      await chrome.storage.local.remove(keys);
+      const all = await chrome.storage.local.get(null);
+      const keys = Object.keys(all).filter(k => this.MEDIA_CACHE_PREFIXES.some(p => k.startsWith(p)));
+      if (keys.length) await chrome.storage.local.remove(keys);
       return true;
     } catch (error) {
-      console.error('Error clearing list caches:', error);
+      console.error('Error clearing media caches:', error);
       return false;
     }
   },
 
+  // Remove all data tied to the signed-in account
+  async clearAccountData() {
+    await this.clearMediaCaches();
+    return await chrome.storage.local.remove(this.ACCOUNT_KEYS);
+  },
+
   // Authentication helpers
   async saveAuthData(token, user) {
+    // Start clean, in case a different account was signed in before
+    await this.clearAccountData();
     return await this.setMultiple({
       [this.KEYS.ACCESS_TOKEN]: token,
       [this.KEYS.USER]: user,
@@ -190,11 +206,7 @@ const Storage = {
   },
 
   async clearAuthData() {
-    return await chrome.storage.local.remove([
-      this.KEYS.ACCESS_TOKEN,
-      this.KEYS.USER,
-      this.KEYS.IS_AUTHENTICATED
-    ]);
+    return await this.clearAccountData();
   }
 };
 
