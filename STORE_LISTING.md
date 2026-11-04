@@ -32,6 +32,10 @@ AniList Tracker is a lightweight browser extension that connects directly to you
 - See real-time progress and episode counts
 - Three card layouts: List, Grid, and Compact views
 
+**Floating Manga Widget**
+- Pin a manga and get a small +1 chapter button on any page you read on
+- Hide it on a page with one click, unpin it from the popup
+
 **Smart Features**
 - Cached data for fast loading
 - Dark theme (AniList, OLED) and Light theme options
@@ -116,6 +120,24 @@ anilist, anime, manga, tracker, watch list, anime tracker, manga tracker, myanim
 
 ---
 
+## Version Release Notes (v1.2.0)
+
+Reliability update: fixes several bugs, some of which could change your AniList list by mistake.
+
+- Fixed: the "+" quick-add button on an outdated browse result could reset a title you had already started back to Plan to Watch with 0 progress. It now checks your list first.
+- Fixed: the manga widget's +1 could roll progress back if you had updated it elsewhere. It now always adds one to your current AniList progress, and stays in sync with the popup.
+- Fixed: removing a pinned manga from your list now unpins it (the widget could add it back).
+- Fixed: logging out now clears all account data, so a different account never sees or changes the previous account's lists.
+- Fixed: adding a new title could copy the previous title's score.
+- Fixed: "This Season" and "Upcoming" no longer change after using the season browser.
+- Fixed: a failed list load now shows the error instead of an empty list.
+- Fixed: switching Anime/Manga while a title is open no longer breaks Save.
+- Fixed: clicking quickly between search and browse tabs no longer shows the wrong results.
+- Improved: clearer messages and automatic retries when AniList is temporarily unavailable.
+- Improved: AniList descriptions are cleaned before display; removed debug logging and unused code.
+
+---
+
 ## Version Release Notes (v1.0.0)
 
 **Initial Release**
@@ -142,9 +164,8 @@ Features:
 **Permissions Justification:**
 
 - **storage** - Store user preferences and cached data locally
-- **activeTab** - Detect active tab for OAuth redirect handling
-- **identity** - Facilitate OAuth authentication flow
-- **tabs** - Manage OAuth callback tabs
+- **tabs** - Open the AniList login page in a tab, detect the OAuth redirect URL in that tab, and close it once login completes
+- **content script on all sites (`<all_urls>`)** - Show the optional floating manga widget (a +1 chapter button for a manga the user pinned) on whatever site they read manga on. On each page it only checks whether a manga is pinned and, if so, adds its own small element; it does not read page content or track browsing, and shows nothing when no manga is pinned
 - **host_permissions (graphql.anilist.co)** - Fetch anime/manga data from AniList API
 - **host_permissions (anilist.co)** - AniList OAuth authentication
 - **host_permissions (anilist-tracker-production.up.railway.app)** - OAuth token exchange (backend server)

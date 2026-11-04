@@ -1,6 +1,6 @@
 # Privacy Policy for AniList Tracker
 
-**Last Updated**: February 25, 2026
+**Last Updated**: November 4, 2026
 
 ## Introduction
 
@@ -17,9 +17,11 @@ AniList Tracker ("the Extension") is a browser extension that helps you track yo
 - **Card Layout Preferences**: Your preferred card layout (List, Grid, or Compact).
 - **Media Type**: Whether you're currently viewing anime or manga.
 - **Cover Display Settings**: Whether you prefer to show or hide cover images.
+- **Pinned Manga**: If you pin a manga to the floating widget, its title, cover and progress are stored so the widget can show them.
 
 ### Temporary Cache Data
 - **List Data**: Your anime/manga lists are temporarily cached (2 minutes) to improve performance.
+- **Browse Results**: Search-tab results such as Trending and seasonal lists are cached (1 hour). These caches are cleared whenever you change your list.
 - **User Data**: Your profile information is cached (5 minutes) to reduce API calls.
 - **Media Details**: Currently selected anime/manga for quick access.
 
@@ -54,7 +56,7 @@ The Extension communicates with:
 - ❌ We do NOT store your password (OAuth authentication only)
 - ❌ We do NOT sell or share your data with third parties
 - ❌ We do NOT use cookies or tracking scripts
-- ❌ We do NOT access data from other websites
+- ❌ We do NOT access data from other websites. The optional manga widget is added to web pages so you can update a pinned manga, but it does not read, record or send anything about the pages you visit
 
 ## Data Sharing
 
@@ -79,7 +81,7 @@ All your data is stored locally. You can inspect it using your browser's develop
 
 ### Delete Your Data
 You can delete your data at any time:
-1. **Logout**: Click the "Logout" button in settings to clear all data.
+1. **Logout**: Click the "Logout" button to clear your account data (access token, profile, cached lists, the open title and any pinned manga). Only your theme/layout preferences and anime/manga selection are kept.
 2. **Uninstall**: Removing the extension deletes all stored data.
 3. **Browser Storage**: Clear your browser's extension storage.
 
@@ -93,7 +95,9 @@ You can revoke the Extension's access to your AniList account:
 
 - **Access Token**: Stored until you logout or uninstall.
 - **Profile Cache**: Expires after 5 minutes and is refreshed as needed.
-- **List Cache**: Expires after 2 minutes and is invalidated when you make updates.
+- **List Cache**: Expires after 2 minutes and is cleared when you make updates.
+- **Browse Cache**: Expires after 1 hour and is cleared when you make updates.
+- **Pinned Manga**: Stored until you unpin it, remove it from your list, or log out.
 - **Preferences**: Stored until you change them or uninstall.
 
 ## Updates to This Policy
