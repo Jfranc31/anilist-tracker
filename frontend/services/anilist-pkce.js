@@ -349,98 +349,85 @@ const AniListAPI = {
   },
 
   /**
-   * Search for multiple anime/manga (returns list)
-   * Now includes user's list status if they have the media on their list
+   * Fields every media card and browse result needs.
+   * Shared by search and all browse queries, so a field change is one edit.
    */
-  async searchAnimeList(title, page = 1, perPage = 10, type = 'ANIME', genres = null) {
-    const hasGenres = genres && genres.length > 0;
-    const genreVar = hasGenres ? ', $genres: [String]' : '';
-    const genreFilter = hasGenres ? ', genre_in: $genres' : '';
+  MEDIA_FIELDS: `
+    id
+    title { romaji english native }
+    coverImage { large medium color }
+    bannerImage
+    episodes chapters volumes
+    status averageScore season seasonYear format genres
+    synonyms startDate { year month day } endDate { year month day }
+    studios { nodes { name isAnimationStudio siteUrl } }
+    source
+    externalLinks { url site type icon language }
+    description(asHtml: true)
+    nextAiringEpisode { timeUntilAiring episode }
+    mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
+    relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
+  `,
+
+  /**
+   * Extra fields only the detail view shows. Fetched per title by getMediaById,
+   * not for every row of a search or browse page.
+   */
+  MEDIA_DETAIL_FIELDS: `
+    characters(sort: ROLE, perPage: 25, page: 1) {
+      pageInfo { hasNextPage }
+      edges { role node { id name { full } image { medium } siteUrl } }
+    }
+    recommendations(sort: RATING_DESC, perPage: 8) { nodes { mediaRecommendation { id title { romaji english } coverImage { large medium } } } }
+  `,
+
+  /**
+   * Run a paged media query. `args` are extra Page.media arguments, e.g.
+   * { search: ['String', 'naruto'] } becomes `$search: String` and `search: $search`.
+   */
+  async pagedMedia({ type, page, perPage, sort, genres = null, args = {} }) {
+    const all = { ...args };
+    if (genres && genres.length > 0) all.genre_in = ['[String]', genres];
+
+    const varDefs = ['$type: MediaType', '$page: Int', '$perPage: Int'];
+    const mediaArgs = ['type: $type', `sort: ${sort}`];
+    const variables = { type, page, perPage };
+    for (const [name, [gqlType, value]] of Object.entries(all)) {
+      varDefs.push(`$${name}: ${gqlType}`);
+      mediaArgs.push(`${name}: $${name}`);
+      variables[name] = value;
+    }
+
     const query = `
-      query ($search: String, $page: Int, $perPage: Int, $type: MediaType${genreVar}) {
+      query (${varDefs.join(', ')}) {
         Page(page: $page, perPage: $perPage) {
-          pageInfo {
-            hasNextPage
-          }
-          media(search: $search, type: $type, sort: POPULARITY_DESC${genreFilter}) {
-            id
-            title {
-              romaji
-              english
-              native
-            }
-            coverImage {
-              large
-              medium
-              color
-            }
-            bannerImage
-            episodes
-            chapters
-            volumes
-            status
-            averageScore
-            season
-            seasonYear
-            format
-            genres
-            synonyms
-            startDate { year month day }
-            endDate { year month day }
-            studios { nodes { name isAnimationStudio siteUrl } }
-            source
-            externalLinks { url site type icon language }
-            description(asHtml: true)
-            nextAiringEpisode {
-              timeUntilAiring
-              episode
-            }
-            mediaListEntry {
-              id
-              status
-              progress
-              progressVolumes
-              score
-              repeat
-              notes
-              startedAt { year month day }
-              completedAt { year month day }
-            }
-            relations {
-              edges {
-                relationType
-                node {
-                  id
-                  title {
-                    romaji
-                    english
-                  }
-                  coverImage {
-                    medium
-                  }
-                  type
-                  format
-                  status
-                  mediaListEntry {
-                    status
-                  }
-                }
-              }
-            }
-            characters(sort: ROLE, perPage: 25, page: 1) {
-              pageInfo { hasNextPage }
-              edges { role node { id name { full } image { medium } siteUrl } }
-            }
-            recommendations(sort: RATING_DESC, perPage: 8) { nodes { mediaRecommendation { id title { romaji english } coverImage { large medium } } } }
-          }
+          pageInfo { hasNextPage }
+          media(${mediaArgs.join(', ')}) { ${this.MEDIA_FIELDS} }
         }
       }
     `;
-
-    const variables = { search: title, page, perPage, type };
-    if (hasGenres) variables.genres = genres;
     const data = await this.query(query, variables);
-    return data.Page;
+    return { media: data.Page.media, pageInfo: data.Page.pageInfo };
+  },
+
+  /**
+   * Get one media entry with everything the detail view shows, by its exact ID.
+   */
+  async getMediaById(id) {
+    const query = `
+      query ($id: Int) {
+        Media(id: $id) { ${this.MEDIA_FIELDS} ${this.MEDIA_DETAIL_FIELDS} }
+      }
+    `;
+    const data = await this.query(query, { id });
+    return data.Media;
+  },
+
+  /**
+   * Search anime/manga by title (includes the user's list status for each result)
+   */
+  async searchAnimeList(title, page = 1, perPage = 10, type = 'ANIME', genres = null) {
+    return this.pagedMedia({ type, page, perPage, genres, sort: 'POPULARITY_DESC', args: { search: ['String', title] } });
   },
 
   /**
@@ -543,144 +530,31 @@ const AniListAPI = {
    * Get trending media
    */
   async getTrending(type = 'ANIME', page = 1, perPage = 10, genres = null) {
-    const hasGenres = genres && genres.length > 0;
-    const genreVar = hasGenres ? ', $genres: [String]' : '';
-    const genreFilter = hasGenres ? ', genre_in: $genres' : '';
-    const query = `
-      query ($type: MediaType, $page: Int, $perPage: Int${genreVar}) {
-        Page(page: $page, perPage: $perPage) {
-          pageInfo { hasNextPage }
-          media(type: $type, sort: TRENDING_DESC${genreFilter}) {
-            id
-            title { romaji english native }
-            coverImage { large medium color }
-            bannerImage
-            episodes chapters volumes
-            status averageScore season seasonYear format genres
-            synonyms startDate { year month day } endDate { year month day }
-            studios { nodes { name isAnimationStudio } }
-            source
-            externalLinks { url site type icon language }
-            description(asHtml: true)
-            nextAiringEpisode { timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
-          }
-        }
-      }
-    `;
-    const variables = { type, page, perPage };
-    if (hasGenres) variables.genres = genres;
-    const data = await this.query(query, variables);
-    return { media: data.Page.media, pageInfo: data.Page.pageInfo };
+    return this.pagedMedia({ type, page, perPage, genres, sort: 'TRENDING_DESC' });
   },
 
   /**
    * Get media by season
    */
   async getSeasonMedia(season, seasonYear, type = 'ANIME', page = 1, perPage = 20, genres = null) {
-    const hasGenres = genres && genres.length > 0;
-    const genreVar = hasGenres ? ', $genres: [String]' : '';
-    const genreFilter = hasGenres ? ', genre_in: $genres' : '';
-    const query = `
-      query ($season: MediaSeason, $seasonYear: Int, $type: MediaType, $page: Int, $perPage: Int${genreVar}) {
-        Page(page: $page, perPage: $perPage) {
-          pageInfo { hasNextPage }
-          media(type: $type, season: $season, seasonYear: $seasonYear, sort: POPULARITY_DESC${genreFilter}) {
-            id
-            title { romaji english native }
-            coverImage { large medium color }
-            bannerImage
-            episodes chapters volumes
-            status averageScore season seasonYear format genres
-            synonyms startDate { year month day } endDate { year month day }
-            studios { nodes { name isAnimationStudio } }
-            source
-            externalLinks { url site type icon language }
-            description(asHtml: true)
-            nextAiringEpisode { timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
-          }
-        }
-      }
-    `;
-    const variables = { season, seasonYear, type, page, perPage };
-    if (hasGenres) variables.genres = genres;
-    const data = await this.query(query, variables);
-    return data.Page;
+    return this.pagedMedia({
+      type, page, perPage, genres, sort: 'POPULARITY_DESC',
+      args: { season: ['MediaSeason', season], seasonYear: ['Int', seasonYear] }
+    });
   },
 
   /**
    * Get all-time popular media
    */
   async getPopularAllTime(type = 'ANIME', page = 1, perPage = 20, genres = null) {
-    const hasGenres = genres && genres.length > 0;
-    const genreVar = hasGenres ? ', $genres: [String]' : '';
-    const genreFilter = hasGenres ? ', genre_in: $genres' : '';
-    const query = `
-      query ($type: MediaType, $page: Int, $perPage: Int${genreVar}) {
-        Page(page: $page, perPage: $perPage) {
-          pageInfo { hasNextPage }
-          media(type: $type, sort: POPULARITY_DESC${genreFilter}) {
-            id
-            title { romaji english native }
-            coverImage { large medium color }
-            bannerImage
-            episodes chapters volumes
-            status averageScore season seasonYear format genres
-            synonyms startDate { year month day } endDate { year month day }
-            studios { nodes { name isAnimationStudio } }
-            source
-            externalLinks { url site type icon language }
-            description(asHtml: true)
-            nextAiringEpisode { timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
-          }
-        }
-      }
-    `;
-    const variables = { type, page, perPage };
-    if (hasGenres) variables.genres = genres;
-    const data = await this.query(query, variables);
-    return { media: data.Page.media, pageInfo: data.Page.pageInfo };
+    return this.pagedMedia({ type, page, perPage, genres, sort: 'POPULARITY_DESC' });
   },
 
   /**
    * Get top-rated media (by score)
    */
   async getTopRated(type = 'ANIME', page = 1, perPage = 20, genres = null) {
-    const hasGenres = genres && genres.length > 0;
-    const genreVar = hasGenres ? ', $genres: [String]' : '';
-    const genreFilter = hasGenres ? ', genre_in: $genres' : '';
-    const query = `
-      query ($type: MediaType, $page: Int, $perPage: Int${genreVar}) {
-        Page(page: $page, perPage: $perPage) {
-          pageInfo { hasNextPage }
-          media(type: $type, sort: SCORE_DESC${genreFilter}) {
-            id
-            title { romaji english native }
-            coverImage { large medium color }
-            bannerImage
-            episodes chapters volumes
-            status averageScore season seasonYear format genres
-            synonyms startDate { year month day } endDate { year month day }
-            studios { nodes { name isAnimationStudio } }
-            source
-            externalLinks { url site type icon language }
-            description(asHtml: true)
-            nextAiringEpisode { timeUntilAiring episode }
-            mediaListEntry { id status progress progressVolumes score repeat notes startedAt { year month day } completedAt { year month day } }
-            relations { edges { relationType node { id title { romaji english } coverImage { medium } type format status mediaListEntry { status } } } }
-          }
-        }
-      }
-    `;
-    const variables = { type, page, perPage };
-    if (hasGenres) variables.genres = genres;
-    const data = await this.query(query, variables);
-    return { media: data.Page.media, pageInfo: data.Page.pageInfo };
+    return this.pagedMedia({ type, page, perPage, genres, sort: 'SCORE_DESC' });
   },
 
   /**

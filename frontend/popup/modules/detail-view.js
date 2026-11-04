@@ -263,9 +263,7 @@ export async function showDetailView(anime) {
 
   if (needsRefresh) {
     try {
-      const query = anime.title.romaji || anime.title.english;
-      const searchResults = await AniListAPI.searchAnimeList(query, 1, 5, state.currentMediaType);
-      const refreshedAnime = searchResults.media.find(m => m.id === anime.id);
+      const refreshedAnime = await AniListAPI.getMediaById(anime.id);
 
       if (refreshedAnime) {
         anime = refreshedAnime;
