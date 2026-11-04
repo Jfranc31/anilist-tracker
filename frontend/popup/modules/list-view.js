@@ -83,10 +83,12 @@ export async function loadList(status) {
     console.error('Error loading list:', error);
     const formattedError = handleAPIError(error, 'Failed to load list. Please try again.');
 
-    // Don't show error in container if it's an auth error (user will be redirected)
-    if (!formattedError.requiresReauth) {
-      listContainer.innerHTML = `<p class="hint error">${formattedError.message}</p>`;
-    }
+    // Replace the loading skeleton with the reason (an expired session also gets a
+    // "Log in again" toast from handleAPIError). Nothing is cached, so retrying works.
+    const msg = document.createElement('p');
+    msg.className = 'hint error';
+    msg.textContent = formattedError.message || 'Failed to load list. Please try again.';
+    listContainer.replaceChildren(msg);
   }
 }
 

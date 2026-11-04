@@ -9,6 +9,13 @@ const CACHE_TTL = 60 * 60 * 1000;
 // DOM elements (will be set by main popup.js)
 let resultsContainer = null;
 
+// Search, browse chips and the season browser all fill resultsContainer. Each new
+// request bumps this counter; a response that comes back after a newer request
+// started is dropped, so a slow earlier request can't replace newer results.
+let viewRequestId = 0;
+const newRequest = () => ++viewRequestId;
+const isStale = id => id !== viewRequestId;
+
 // Pagination state
 let currentQuery = '';
 let currentPage = 1;
@@ -23,31 +30,29 @@ let browseHasNextPage = false;
 let activeGenreFilters = [];
 let searchGenreChipsContainer = null;
 
-// Season browser state
-let seasonBrowseActive = false;
-let currentSeason = 'WINTER';
-let currentSeasonYear = 2026;
-let seasonPage = 1;
-let seasonHasNextPage = false;
 const SEASONS = ['WINTER', 'SPRING', 'SUMMER', 'FALL'];
 
-// Determine current season from date
-(function initSeason() {
+// The real current season, from today's date
+function seasonNow() {
   const now = new Date();
-  const month = now.getMonth();
-  currentSeasonYear = now.getFullYear();
-  if (month < 3) currentSeason = 'WINTER';
-  else if (month < 6) currentSeason = 'SPRING';
-  else if (month < 9) currentSeason = 'SUMMER';
-  else currentSeason = 'FALL';
-})();
-
-// Helper: get next season/year from current
-function getNextSeason() {
-  const idx = SEASONS.indexOf(currentSeason);
-  if (idx < 3) return { season: SEASONS[idx + 1], year: currentSeasonYear };
-  return { season: SEASONS[0], year: currentSeasonYear + 1 };
+  return { season: SEASONS[Math.floor(now.getMonth() / 3)], year: now.getFullYear() };
 }
+
+// The season after the given one
+function nextSeasonAfter({ season, year }) {
+  const idx = SEASONS.indexOf(season);
+  if (idx < 3) return { season: SEASONS[idx + 1], year };
+  return { season: SEASONS[0], year: year + 1 };
+}
+
+// Season browser state. This is only what the season browser is showing; the
+// "This Season" and "Upcoming" chips always use seasonNow(), so browsing an old
+// season never changes them.
+let seasonBrowseActive = false;
+let currentSeason = seasonNow().season;
+let currentSeasonYear = seasonNow().year;
+let seasonPage = 1;
+let seasonHasNextPage = false;
 
 // Category display names
 const CATEGORY_TITLES = {
@@ -116,6 +121,7 @@ function renderSearchGenreChips() {
 // ─── Default empty state ──────────────────────────────────────────────────
 
 function showDefaultEmptyState() {
+  newRequest();
   if (!resultsContainer) return;
   const mediaName = state.currentMediaType === 'ANIME' ? 'anime' : 'manga';
   resultsContainer.innerHTML = emptyStateHTML(ICON_SEARCH, `Search or browse ${mediaName} to get started.`);
@@ -125,6 +131,7 @@ function showDefaultEmptyState() {
 
 export async function searchAnime(query) {
   if (!query || query.trim().length < 2) {
+    newRequest(); // drop any search still in flight
     if (resultsContainer) {
       resultsContainer.innerHTML = emptyStateHTML(ICON_SEARCH, 'Enter at least 2 characters to search.');
     }
@@ -150,12 +157,14 @@ export async function searchAnime(query) {
 
   currentQuery = query;
   currentPage = 1;
+  const reqId = newRequest();
 
   const mediaName = state.currentMediaType === 'ANIME' ? 'anime' : 'manga';
   setSkeletonLoading(resultsContainer, 4);
 
   try {
     const searchResults = await AniListAPI.searchAnimeList(query, 1, 10, state.currentMediaType, genresForAPI());
+    if (isStale(reqId)) return;
 
     if (!searchResults || !searchResults.media || searchResults.media.length === 0) {
       if (resultsContainer) {
@@ -168,6 +177,7 @@ export async function searchAnime(query) {
     await displaySearchResults(searchResults.media);
     if (hasNextPage) appendLoadMoreButton();
   } catch (error) {
+    if (isStale(reqId)) return;
     console.error('Search error:', error);
     const formattedError = handleAPIError(error, 'Search failed. Please try again.');
 
@@ -186,9 +196,11 @@ async function loadMore() {
     loadMoreBtn.textContent = 'Loading...';
   }
 
+  const reqId = viewRequestId;
   try {
     currentPage++;
     const searchResults = await AniListAPI.searchAnimeList(currentQuery, currentPage, 10, state.currentMediaType, genresForAPI());
+    if (isStale(reqId)) return;
 
     if (!searchResults || !searchResults.media) return;
 
@@ -274,10 +286,16 @@ async function loadBrowseCategoryData(category) {
   if (!resultsContainer) return;
 
   const type = state.currentMediaType;
-  const cacheKey = `browse_${category}_${type}${genreCacheKey()}`;
+  // Season chips include the season in the key so a new season never shows the old cache
+  const seasonPart = category === 'this-season' ? `_${seasonKey(seasonNow())}`
+    : category === 'upcoming' ? `_${seasonKey(nextSeasonAfter(seasonNow()))}` : '';
+  const cacheKey = `browse_${category}_${type}${seasonPart}${genreCacheKey()}`;
+
+  const reqId = newRequest();
 
   // Check persistent cache first (only for page 1)
   const cached = await Storage.getCache(cacheKey, CACHE_TTL);
+  if (isStale(reqId)) return;
   if (cached) {
     const isOldFormat = Array.isArray(cached);
     const media = isOldFormat ? cached : cached.media;
@@ -293,6 +311,7 @@ async function loadBrowseCategoryData(category) {
 
   try {
     const result = await fetchBrowsePage(category, type, 1);
+    if (isStale(reqId)) return;
 
     if (!result.media || result.media.length === 0) {
       resultsContainer.innerHTML = emptyStateHTML(ICON_NO_RESULTS, `No results found for ${CATEGORY_TITLES[category]}.`);
@@ -304,9 +323,14 @@ async function loadBrowseCategoryData(category) {
     await displayBrowseResults(result.media, CATEGORY_TITLES[category], category);
     if (browseHasNextPage) appendBrowseLoadMoreButton();
   } catch (error) {
+    if (isStale(reqId)) return;
     console.error(`Browse ${category} error:`, error);
     handleAPIError(error, `Failed to load ${CATEGORY_TITLES[category]}.`);
   }
+}
+
+function seasonKey({ season, year }) {
+  return `${season}_${year}`;
 }
 
 async function fetchBrowsePage(category, type, page) {
@@ -317,11 +341,13 @@ async function fetchBrowsePage(category, type, page) {
     case 'trending':
       result = await AniListAPI.getTrending(type, page, 20, genres);
       break;
-    case 'this-season':
-      result = await AniListAPI.getSeasonMedia(currentSeason, currentSeasonYear, type, page, 20, genres);
+    case 'this-season': {
+      const now = seasonNow();
+      result = await AniListAPI.getSeasonMedia(now.season, now.year, type, page, 20, genres);
       break;
+    }
     case 'upcoming': {
-      const next = getNextSeason();
+      const next = nextSeasonAfter(seasonNow());
       result = await AniListAPI.getSeasonMedia(next.season, next.year, type, page, 20, genres);
       break;
     }
@@ -345,9 +371,11 @@ async function loadMoreBrowse() {
     loadMoreBtn.textContent = 'Loading...';
   }
 
+  const reqId = viewRequestId;
   try {
     browsePage++;
     const result = await fetchBrowsePage(activeBrowseCategory, state.currentMediaType, browsePage);
+    if (isStale(reqId)) return;
 
     if (!result.media) return;
 
@@ -477,10 +505,12 @@ async function loadSeasonResults() {
 
   seasonPage = 1;
   seasonHasNextPage = false;
+  const reqId = newRequest();
 
   // Check persistent cache first (keyed by season + year + media type + genre)
   const cacheKey = `seasonCache_${currentSeason}_${currentSeasonYear}_${state.currentMediaType}${genreCacheKey()}`;
   const cached = await Storage.getCache(cacheKey, CACHE_TTL);
+  if (isStale(reqId)) return;
   if (cached) {
     const isOldFormat = Array.isArray(cached);
     const media = isOldFormat ? cached : cached.media;
@@ -494,6 +524,7 @@ async function loadSeasonResults() {
 
   try {
     const result = await AniListAPI.getSeasonMedia(currentSeason, currentSeasonYear, state.currentMediaType, 1, 20, genresForAPI());
+    if (isStale(reqId)) return;
     if (!result.media || result.media.length === 0) {
       const mediaName = state.currentMediaType === 'ANIME' ? 'anime' : 'manga';
       resultsContainer.innerHTML = emptyStateHTML(ICON_NO_RESULTS, `No ${mediaName} found for this season.`);
@@ -504,6 +535,7 @@ async function loadSeasonResults() {
     await displaySeasonResults(result.media);
     if (seasonHasNextPage) appendSeasonLoadMoreButton();
   } catch (error) {
+    if (isStale(reqId)) return;
     console.error('Season load error:', error);
     handleAPIError(error, 'Failed to load season data.');
   }
@@ -518,9 +550,11 @@ async function loadMoreSeason() {
     loadMoreBtn.textContent = 'Loading...';
   }
 
+  const reqId = viewRequestId;
   try {
     seasonPage++;
     const result = await AniListAPI.getSeasonMedia(currentSeason, currentSeasonYear, state.currentMediaType, seasonPage, 20, genresForAPI());
+    if (isStale(reqId)) return;
 
     if (!result.media) return;
 

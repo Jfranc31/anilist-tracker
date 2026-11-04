@@ -206,7 +206,14 @@ const AniListAPI = {
         })
       });
 
-      const data = await response.json();
+      // Error pages from AniList's proxy (e.g. a 502) are HTML, not JSON. Parse safely so
+      // the status checks below still run (and retry) instead of failing on the parse.
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
 
       // Handle rate limiting (429) — auto-retry once after the wait period
       if (response.status === 429) {
@@ -249,6 +256,14 @@ const AniListAPI = {
         throw {
           type: 'SERVER_ERROR',
           message: 'AniList servers are currently unavailable. Please try again later.'
+        };
+      }
+
+      // Anything else that isn't valid JSON
+      if (!data) {
+        throw {
+          type: 'SERVER_ERROR',
+          message: 'AniList sent an unexpected response. Please try again.'
         };
       }
 
@@ -480,23 +495,20 @@ const AniListAPI = {
       }
     `;
 
-    try {
-      const user = await this.getCurrentUser();
-      const data = await this.query(query, { userId: user.id, status, type });
+    // Errors are passed on to the caller: returning [] here made a failed load look
+    // like an empty list (and that empty result got cached)
+    const user = await this.getCurrentUser();
+    const data = await this.query(query, { userId: user.id, status, type });
 
-      // Flatten the entries from all lists
-      const entries = [];
-      if (data.MediaListCollection && data.MediaListCollection.lists) {
-        for (const list of data.MediaListCollection.lists) {
-          entries.push(...list.entries);
-        }
+    // Flatten the entries from all lists
+    const entries = [];
+    if (data.MediaListCollection && data.MediaListCollection.lists) {
+      for (const list of data.MediaListCollection.lists) {
+        entries.push(...list.entries);
       }
-
-      return entries;
-    } catch (error) {
-      console.error('Error fetching user media list:', error);
-      return [];
     }
+
+    return entries;
   },
 
   /**

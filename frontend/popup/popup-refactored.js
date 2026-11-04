@@ -370,6 +370,11 @@ async function showMainView() {
 }
 
 function switchMediaType(type) {
+  // Switching with a title open used to leave it on screen with nothing behind it,
+  // so Save and +1 silently did nothing. Leave the detail view instead.
+  const leavingDetail = !detailView.classList.contains('hidden');
+  if (leavingDetail) clearDetailView();
+
   setMediaType(type);
   chrome.storage.local.set({ currentMediaType: type });
   clearNavHistory();
@@ -403,6 +408,11 @@ function switchMediaType(type) {
   if (state.currentTab === 'search') {
     searchInput.value = '';
     clearBrowseCategory();
+    if (leavingDetail) showSearchView();
+  } else if (leavingDetail) {
+    const status = STATUS_CYCLE.find(s => s.status.toLowerCase() === state.currentTab)?.status;
+    if (status) showListView(status);
+    else showSearchView();
   } else {
     const statusMap = {
       'current': 'CURRENT',
@@ -631,14 +641,19 @@ detailUpdateBtn.addEventListener('click', () => {
 });
 
 // Media type toggle buttons
+function confirmLeaveDetail() {
+  if (detailView.classList.contains('hidden') || !isDetailDirty()) return true;
+  return confirm('You have unsaved changes. Leave without saving?');
+}
+
 toggleAnime.addEventListener('click', () => {
-  if (state.currentMediaType !== 'ANIME') {
+  if (state.currentMediaType !== 'ANIME' && confirmLeaveDetail()) {
     switchMediaType('ANIME');
   }
 });
 
 toggleManga.addEventListener('click', () => {
-  if (state.currentMediaType !== 'MANGA') {
+  if (state.currentMediaType !== 'MANGA' && confirmLeaveDetail()) {
     switchMediaType('MANGA');
   }
 });
