@@ -161,6 +161,10 @@ function resetDetailContent() {
   if (detailMeta) detailMeta.textContent = '';
   if (detailStatus) detailStatus.textContent = '';
   if (detailStatusSelect) detailStatusSelect.value = '';
+  // Score and volumes are only filled in for titles on the list; reset them so a
+  // title that isn't on the list never saves the previous title's values
+  if (detailScoreInput) detailScoreInput.value = '0';
+  if (detailVolumeInput) detailVolumeInput.value = '0';
   if (detailStatusButtons) detailStatusButtons.innerHTML = '';
   if (detailInfoStats) detailInfoStats.innerHTML = '';
   if (detailMetaBlock) detailMetaBlock.innerHTML = '';
